@@ -1,7 +1,7 @@
 'use strict';
 // POST {fn, args}: runs one dashboard function (same names as google.script.run in Apps Script).
 const session = require('../lib/session');
-const { runJob } = require('../lib/host');
+const { runJob, setOidcToken } = require('../lib/host');
 
 // Only these functions can be called from the browser (the internal helpers ending in _ never can).
 const ALLOWED = new Set([
@@ -36,6 +36,7 @@ module.exports = async (req, res) => {
   const fn = String(b.fn || '');
   const args = Array.isArray(b.args) ? b.args : [];
   if (!ALLOWED.has(fn)) return res.status(400).json({ ok: false, error: 'Unknown function: ' + fn });
+  setOidcToken(req.headers['x-vercel-oidc-token']);          // keyless Google access (Workload Identity Federation)
   // keep active users signed in (renew when less than half of the session is left)
   if (s.exp - Date.now() < session.LIFE_SEC * 500) session.set(res, s.email);
   try {

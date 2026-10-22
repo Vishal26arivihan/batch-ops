@@ -75,6 +75,15 @@ async function handle(url, opts) {
   const body = opts.body ? (typeof opts.body === 'string' ? opts.body : Buffer.from(opts.body).toString('utf8')) : '';
   LOG.push(method + ' ' + u.host + u.pathname + (u.search.length < 160 ? u.search : u.search.slice(0, 160)));
   if (u.host === 'oauth2.googleapis.com' && u.pathname === '/token') return J(200, { access_token: 'mock-sa-token', expires_in: 3600 });
+  if (u.host === 'sts.googleapis.com') {
+    const j = JSON.parse(body);
+    if (j.subjectToken !== 'vercel-oidc' || !/workloadIdentityPools\/vercel\/providers\/vercel$/.test(j.audience)) return J(400, { error: 'invalid_grant', error_description: 'bad subject token' });
+    return J(200, { access_token: 'federated', expires_in: 3600 });
+  }
+  if (u.host === 'iamcredentials.googleapis.com') {
+    if ((opts.headers || {}).authorization !== 'Bearer federated') return J(403, { error: { message: 'Permission iam.serviceAccounts.getAccessToken denied' } });
+    return J(200, { accessToken: 'mock-sa-token', expireTime: new Date(Date.now() + 3600e3).toISOString() });
+  }
   if (u.host === 'sheets.googleapis.com') {
     const m = u.pathname.match(/^\/v4\/spreadsheets\/([^/:]+)(.*)$/);
     const b = BOOKS[m[1]];

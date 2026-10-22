@@ -18,12 +18,28 @@ Google services are provided by small Node versions in `lib/gas/`. The few Verce
 
 | Name | Value |
 |---|---|
-| `GOOGLE_SA_JSON` | Full content of the service-account JSON key file (paste the whole file). |
-| `GOOGLE_CLIENT_ID` | OAuth client ID (`….apps.googleusercontent.com`). |
-| `ENC_KEY` | Long random text (at least 32 characters). Set it once and **never change it**, or the saved settings cannot be read. |
-| `SESSION_SECRET` | At least 32 random characters. |
+| `GCP_PROJECT_NUMBER` | Google Cloud → IAM & Admin → Settings → Project number |
+| `GCP_SERVICE_ACCOUNT_EMAIL` | e.g. `batch-ops-bot@….iam.gserviceaccount.com` |
+| `GCP_WORKLOAD_IDENTITY_POOL_ID` | `vercel` |
+| `GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID` | `vercel` |
+| `GOOGLE_CLIENT_ID` | OAuth client ID (`….apps.googleusercontent.com`) for "Sign in with Google" |
+| `ENC_KEY` | Long random text (40+ characters). Set it once and **never change it**, or the saved settings cannot be read. |
+| `SESSION_SECRET` | A different long random text (40+ characters). |
 
-For `ENC_KEY` and `SESSION_SECRET`, use two **different** long random texts, e.g. from a password manager (40+ characters).
+Google access is **keyless**: Vercel OIDC + Google Workload Identity Federation, so no key file exists anywhere.
+Only if your Google account allows service-account keys, you can use `GOOGLE_SA_JSON` (the full key file) instead of the four `GCP_*` values.
+
+### Keyless Google access – one-time setup
+1. In Google Cloud, enable these APIs: Google Sheets API, Google Drive API, IAM Service Account Credentials API and Security Token Service API.
+2. Go to IAM & Admin → Workload Identity Federation → Create pool (name `Vercel`, ID `vercel`). Add a provider:
+   - Type: OIDC. Name `Vercel`, ID `vercel`.
+   - Issuer: `https://oidc.vercel.com/<team-slug>`.
+   - Allowed audiences: `https://vercel.com/<team-slug>`.
+   - Attribute mapping: `google.subject` = `assertion.sub`.
+3. Open the service account → Principals with access → Grant access.
+   - Principal: `principal://iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/vercel/subject/owner:<team-slug>:project:batch-ops:environment:production`
+   - Role: **Workload Identity User**.
+4. In Vercel → Project → Settings → Security, turn on "Secure Backend Access with OIDC Federation" (issuer mode **Team**).
 
 ## First start
 
