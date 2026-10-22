@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Batch OPS Setup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f4f6fb; --card: #fff; --ink: #0f172a; --muted: #64748b; --line: #e6e9f2; --accent: #3b5bfd; --ok: #067647; --okb: #ecfdf3; --err: #b42318; --errb: #fef3f2; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0c0f14; --card: #151a21; --ink: #f2f4f7; --muted: #98a2b3; --line: #262d38; --accent: #6c8cff; --ok: #47cd89; --okb: #0f2a1d; --err: #f97066; --errb: #331512; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14.5px/1.55 Inter, system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -.02em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 16px; }
+  .muted { color: var(--muted); }
+  ol { padding-left: 20px; margin: 8px 0; } li { margin: 4px 0; }
+  code { background: rgba(127,127,127,.15); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  textarea, input { width: 100%; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 10px; padding: 10px 12px; font: 13px ui-monospace, Menlo, Consolas, monospace; }
+  textarea { min-height: 160px; resize: vertical; }
+  button { border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 700; padding: 10px 18px; border-radius: 10px; cursor: pointer; margin-top: 12px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { border-radius: 10px; padding: 10px 12px; margin-top: 12px; white-space: pre-wrap; }
+  .ok { background: var(--okb); color: var(--ok); } .bad { background: var(--errb); color: var(--err); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Batch OPS – one-time setup</h1>
+  <div class="muted" id="who">Checking…</div>
+
+  <div class="card" id="box" hidden>
+    <b>Import the settings from Apps Script</b>
+    <p class="muted" style="margin:6px 0 0">Users, feature access, admin password, shared token and safety settings move from the old Apps Script dashboard to here. Personal tokens are not moved – every user saves their token once again (safer).</p>
+    <ol>
+      <li>Open the Apps Script project <b>Batch OPS Dashboard</b> → file <b>AdminGS</b>.</li>
+      <li>Choose the function <code>exportSettingsForMigration</code> at the top → <b>Run</b>.</li>
+      <li>Open <b>Execution log</b> and copy everything between the <code>-----</code> lines.</li>
+      <li>Paste it below and click Import. Do not send this text to anyone.</li>
+    </ol>
+    <textarea id="json" placeholder='{"ADM_USERS":"[...]", ...}' spellcheck="false" autocomplete="off"></textarea>
+    <div id="passWrap" hidden><p class="muted" style="margin:10px 0 6px">Settings were imported before (<span id="when"></span>). Importing again replaces them – enter the admin password to confirm.</p>
+      <input id="pass" type="password" placeholder="Admin password" autocomplete="current-password"></div>
+    <button id="go">Import settings</button>
+    <div id="out"></div>
+  </div>
+  <p style="margin-top:18px"><a href="/">← Back to the dashboard</a></p>
+</main>
+<script>
+  function $(id) { return document.getElementById(id); }
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return fetch('/api/rpc', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw String(j.error); return j.value; });
+  }
+  function show(text, ok) { $('out').innerHTML = ''; var d = document.createElement('div'); d.className = 'msg ' + (ok ? 'ok' : 'bad'); d.textContent = text; $('out').appendChild(d); }
+  fetch('/api/config', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (c) {
+    if (!c.email) { $('who').innerHTML = 'Please <a href="/">sign in on the dashboard</a> first (with the owner account), then come back to this page.'; return; }
+    return call('vercelSetupStatus').then(function (s) {
+      if (!s.owner) { $('who').textContent = 'Signed in as ' + s.email + '. Only the owner account can run the setup.'; return; }
+      $('who').textContent = 'Signed in as ' + s.email + ' (owner).';
+      $('box').hidden = false;
+      if (s.imported) { $('passWrap').hidden = false; $('when').textContent = s.imported; }
+    });
+  }).catch(function (e) { $('who').textContent = 'Error: ' + e; });
+  $('go').onclick = function () {
+    var raw = $('json').value.trim();
+    if (!raw) { show('Paste the JSON first.', false); return; }
+    if (!confirm('Import these settings into the Vercel dashboard?')) return;
+    if (!confirm('Please confirm again – the users, admin password and shared token will be replaced.')) return;
+    $('go').disabled = true;
+    call('vercelImportSettings', raw, $('pass').value).then(function (r) {
+      $('json').value = ''; $('pass').value = '';
+      show('Imported ' + r.count + ' settings:\n' + r.keys.join('\n') + '\n\nDone – open the dashboard. Each user saves their own token once (Token button).', true);
+    }).catch(function (e) { show(String(e), false); }).then(function () { $('go').disabled = false; });
+  };
+</script>
+</body>
+</html>

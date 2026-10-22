@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Batch OPS · Arivihan</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --ink: #0f172a; --ink2: #334155; --muted: #64748b; --line: #e6e9f2; --line2: #d5dbe8;
+    --accent: #3b5bfd; --accent-ink: #ffffff; --accent-soft: #eef2ff; --accent-hover: #2f4be0;
+    --side: #0f1b3d; --side2: #0b1530; --side-ink: #c7d2fe; --side-mut: #7183c4;
+    --inp: #fbfcfe; --seg: #eef1f7;
+    --phy-bg: #eaf0ff; --phy: #3b5bfd; --che-bg: #fdf0e6; --che: #c2620a; --bio-bg: #e7f7ef; --bio: #0f9d58;
+    color-scheme: light;
+    --ok: #067647; --ok-bg: #ecfdf3; --warn: #b54708; --warn-bg: #fffaeb; --err: #b42318; --err-bg: #fef3f2; --chip: #f2f4f7;
+    --shadow: 0 1px 2px rgba(16,24,40,.05); --shadow-lg: 0 12px 32px -8px rgba(16,24,40,.18);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0f14; --card: #151a21; --ink: #f2f4f7; --ink2: #cfd4dc; --muted: #98a2b3; --line: #262d38; --line2: #323a46;
+      --accent: #6c8cff; --accent-ink: #ffffff; --accent-soft: #18233d; --accent-hover: #869fff;
+      --side: #0a1128; --side2: #070c1d;
+      --inp: #0f141b; --seg: #1d232c;
+      --phy-bg: #1b2547; --phy: #8fa6ff; --che-bg: #3a2414; --che: #f6a660; --bio-bg: #12301f; --bio: #5fd394;
+      color-scheme: dark;
+      --ok: #47cd89; --ok-bg: #0f2a1d; --warn: #fdb022; --warn-bg: #2e2110; --err: #f97066; --err-bg: #331512; --chip: #1d232c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4); --shadow-lg: 0 12px 32px -8px rgba(0,0,0,.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14.5px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+  .ic { display: inline-flex; width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+  .ic svg { width: 100%; height: 100%; }
+
+  /* ---------- app shell: sidebar + content ---------- */
+  .app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+  .side { position: sticky; top: 0; height: 100vh; background: linear-gradient(180deg, var(--side), var(--side2)); color: var(--side-ink);
+    padding: 18px 14px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; z-index: 6; }
+  .brand { display: flex; align-items: center; gap: 11px; margin: 2px 6px 16px; min-width: 0; }
+  .logo { width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #6c8cff, #3b5bfd); color: #fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 16px; flex: none; box-shadow: 0 6px 16px rgba(59,91,253,.45); }
+  .brand-name { font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; line-height: 1.2; color: #fff; }
+  .brand-sub { font-size: 11.5px; color: #93a3d8; line-height: 1.3; }
+  #nav { display: flex; flex-direction: column; gap: 3px; }
+  #nav .nsec { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--side-mut); margin: 14px 12px 4px; font-weight: 600; }
+  #nav .nsec:first-child { margin-top: 0; }
+  #nav button { border: 0; background: transparent; color: var(--side-ink); padding: 10px 12px; font: inherit; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 11px; border-radius: 10px; text-align: left; white-space: nowrap; transition: background .15s, color .15s; }
+  #nav button .ic { width: 17px; height: 17px; }
+  #nav button:hover { background: rgba(255,255,255,.06); color: #fff; }
+  #nav button.on { background: rgba(108,140,255,.18); color: #fff; box-shadow: inset 3px 0 0 #6c8cff; }
+  .side-foot { margin-top: auto; background: rgba(255,255,255,.06); border-radius: 12px; padding: 12px; font-size: 12px; line-height: 1.5; min-width: 0; }
+  #who { color: #e0e7ff; font-weight: 600; overflow-wrap: anywhere; }
+  #tokState { color: #93a3d8; display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  #tokState i { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; flex: none; }
+  #tokState.ok i { background: #22c55e; } #tokState.bad i { background: #f87171; }
+  .content { min-width: 0; }
+  .login { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(circle at 20% 20%, #1d3170, transparent 50%), linear-gradient(160deg, #0f1b3d, #070c1d); }
+  .logincard { background: var(--card); color: var(--ink); border-radius: 18px; padding: 30px 26px; width: min(380px, 100%); text-align: center; box-shadow: var(--shadow-lg); }
+  .logincard h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+  .logincard p { margin: 6px 0 20px; color: var(--muted); font-size: 13.5px; }
+  .envsw button { padding: 5px 12px; font-size: 12.5px; }
+  .envsw button[data-e="STAGE"].on { background: #f59e0b; color: #1c1300; }
+  .stagebar { border-radius: var(--radius); padding: 12px 16px; margin-bottom: 18px; font-size: 13.5px; background: #fef3c7; color: #78350f;
+    border: 2px solid #f59e0b; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .stagebar b { font-weight: 800; letter-spacing: .02em; }
+  .stagebar > div { flex: 1 1 320px; }
+  .stagebar > .ic { width: 20px; height: 20px; }
+  .stagebar .btn { margin-left: auto; }
+  body.stage .topbar { box-shadow: inset 0 3px 0 #f59e0b; }
+  body.stage .logo { background: linear-gradient(135deg, #fbbf24, #d97706); box-shadow: 0 6px 16px rgba(217,119,6,.45); }
+  .envtag { display: inline-block; background: #f59e0b; color: #1c1300; font-weight: 800; font-size: 10.5px; letter-spacing: .1em; border-radius: 6px; padding: 1px 7px; margin-bottom: 6px; }
+  @media (prefers-color-scheme: dark) { .stagebar { background: #2e2110; color: #fcd34d; } }
+  .topbar { max-width: 1240px; margin: 0 auto; padding: 18px 28px 0; display: flex; align-items: center; gap: 10px; }
+  .topbar .mlogo { display: none; }
+  #topDate { color: var(--muted); font-size: 13px; font-weight: 500; margin-right: auto; }
+
+  /* ---------- layout ---------- */
+  main { max-width: 1240px; margin: 0 auto; padding: 10px 28px 48px; }
+  .phead { margin-bottom: 18px; }
+  .phead h1 { margin: 0; font-size: 23px; font-weight: 800; letter-spacing: -.025em; }
+  .phead p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+
+  /* segmented control (language / filter) */
+  .tabs { display: inline-flex; background: var(--seg); border: 0; border-radius: 10px; padding: 3px; }
+  .tabs button { border: 0; background: transparent; color: var(--muted); padding: 6px 14px; border-radius: 8px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .tabs button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+  @media (prefers-color-scheme: dark) { .tabs button.on { background: #2b3442; } }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line2); background: var(--card); color: var(--ink2);
+    padding: 8px 14px; border-radius: 10px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; min-height: 38px; box-shadow: var(--shadow);
+    transition: background .15s, border-color .15s, color .15s; text-decoration: none; }
+  .btn:hover { background: var(--chip); }
+  .btn.primary { background: linear-gradient(135deg, #5372ff, var(--accent)); border-color: transparent; color: var(--accent-ink); box-shadow: 0 6px 14px -4px rgba(59,91,253,.45); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, var(--line2)); background: var(--card); }
+  .btn.danger:hover { background: var(--err-bg); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.sm { min-height: 30px; padding: 4px 10px; font-size: 12.5px; gap: 6px; }
+  .btn.icon-only { padding: 6px 9px; }
+  .wide { width: 100%; }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; box-shadow: var(--shadow); }
+  .head { display: flex; align-items: center; gap: 12px; }
+  .icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none; }
+  .icon .ic { width: 20px; height: 20px; }
+  .title { font-weight: 600; font-size: 15px; color: var(--ink); }
+  .title small { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; margin-top: 1px; }
+  .sect { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+  .status { margin-left: auto; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .s-ok { color: var(--ok); background: var(--ok-bg); }
+  .s-todo { color: var(--warn); background: var(--warn-bg); }
+  .s-err { color: var(--err); background: var(--err-bg); }
+  .s-load { color: var(--muted); background: var(--chip); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11.5px; color: var(--muted); }
+  .list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink2); }
+  .list li::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin: 0 8px 2px 2px; }
+  .warn { font-size: 12.5px; color: var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 8px 10px; word-break: break-word; }
+  .err { font-size: 13px; color: var(--err); background: var(--err-bg); border-radius: 8px; padding: 9px 12px; word-break: break-word; white-space: pre-wrap; }
+  details { font-size: 12.5px; }
+  details summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+  details pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; max-height: 240px; overflow: auto;
+    background: var(--chip); padding: 10px; border-radius: 8px; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; }
+  .foot { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+  .foot .btn { flex: 1; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .center { text-align: center; padding: 48px 16px; color: var(--muted); }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
+    border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; flex: none; }
+  @keyframes r { to { transform: rotate(360deg); } }
+
+  /* toast + dialogs */
+  #toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 8px); background: #101828; color: #fff;
+    padding: 10px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    max-width: calc(100% - 32px); box-shadow: var(--shadow-lg); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); padding: 0;
+    width: min(560px, calc(100% - 32px)); max-height: 85vh; box-shadow: var(--shadow-lg); }
+  dialog::backdrop { background: rgba(16,24,40,.5); backdrop-filter: blur(2px); }
+  .dlg { padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 85vh; }
+  .dlg h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .dlg .body { overflow: auto; font-size: 13.5px; white-space: pre-wrap; word-break: break-word; color: var(--ink2);
+    background: var(--chip); border-radius: 10px; padding: 12px 14px; font-variant-numeric: tabular-nums; }
+  .dlg .row { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
+
+  /* lecture push */
+  .lec { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .lbl { font-size: 13px; font-weight: 600; color: var(--ink2); }
+  .muted { color: var(--muted); font-weight: 400; }
+  .inp { width: 100%; border: 1px solid var(--line2); background: var(--card); color: var(--ink); border-radius: 8px;
+    padding: 9px 12px; font: inherit; font-size: 15px; min-height: 42px; box-shadow: none; background: var(--inp); transition: border-color .15s, box-shadow .15s; }
+  .inp:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .02em; }
+  .link { font-size: 12.5px; background: var(--chip); border: 1px dashed var(--line2); border-radius: 8px; padding: 8px 10px; word-break: break-all; }
+  .tgrid { display: grid; grid-template-columns: 96px repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; }
+  .tlabel { font-size: 13px; font-weight: 600; color: var(--ink2); }
+  .t { text-align: center; padding: 9px 4px; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: -4px; }
+  .tokbtn.bad { color: var(--err); border-color: var(--err); }
+  #tokDlg .row { flex-wrap: wrap; }
+  .authbar, .freezebar { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px; font-size: 13.5px; }
+  .authbar { background: var(--warn-bg); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+  .authbar a.btn { margin-top: 8px; }
+  .freezebar { background: var(--err-bg); color: var(--err); border: 1px solid var(--err); white-space: pre-wrap; font-weight: 600; }
+  .tools { display: grid; gap: 8px; }
+  .upcard { margin-bottom: 18px; }
+  .uprow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+  .uprow b { min-width: 90px; }
+  .uprow .muted { font-size: 12px; flex: 1; min-width: 140px; word-break: break-all; }
+  .uplist { display: flex; flex-direction: column; gap: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--chip); color: var(--ink2); }
+  .pill .ic { width: 13px; height: 13px; vertical-align: 0; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.bad { color: var(--err); background: var(--err-bg); }
+  .pill.wait { color: var(--warn); background: var(--warn-bg); }
+  .uperr { white-space: pre-wrap; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; background: var(--err-bg); color: var(--err); border-radius: 8px; padding: 10px; margin-top: 4px; max-height: 260px; overflow: auto; }
+  .pdfbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #pdfSec { display: flex; flex-direction: column; gap: 10px; }
+  #pdfSec .hint { margin-top: 0; }
+  .saverow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px; margin-top: 4px; }
+  .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px 14px; font-size: 13px; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .kv span { color: var(--muted); }
+  .kv b { font-weight: 600; word-break: break-all; font-variant-numeric: tabular-nums; }
+  .pushes { display: grid; gap: 8px; }
+  .pushboth { flex-direction: row; flex-wrap: wrap; padding: 12px 14px; min-height: 54px; font-size: 14.5px; }
+  .pushboth .pbsub { flex-basis: 100%; font-size: 11.5px; font-weight: 500; opacity: .85; text-align: center; }
+  .pushsep { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); font-weight: 600; margin: 4px 0 0; }
+  .pushsep::before, .pushsep::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .log { display: flex; flex-direction: column; gap: 8px; }
+  .log .entry { font-size: 12.5px; border: 1px solid var(--line); border-left: 3px solid var(--line2); border-radius: 8px; padding: 9px 12px; white-space: pre-wrap; word-break: break-word; color: var(--ink2); }
+  .log .entry.ok { border-left-color: var(--ok); background: var(--ok-bg); }
+  .log .entry.bad { border-left-color: var(--err); background: var(--err-bg); color: var(--err); }
+  .log .entry b { display: block; margin-bottom: 2px; color: var(--ink); }
+  .log .entry.bad b { color: var(--err); }
+
+  /* today */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .kpi::before { content: ""; position: absolute; right: -18px; top: -18px; width: 70px; height: 70px; border-radius: 50%; background: var(--k); opacity: .12; }
+  .kpi .l { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .kpi .v { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .s { font-size: 12px; color: var(--muted); min-height: 18px; }
+  .kpi .bar { height: 6px; background: var(--chip); border-radius: 9px; margin-top: 10px; overflow: hidden; }
+  .kpi .bar i { display: block; height: 100%; border-radius: 9px; background: var(--k); }
+  .tdlist { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 6px 18px; box-shadow: var(--shadow); }
+  .tdlist > .err, .tdlist > .center { margin: 12px 0; }
+  .tdgroup { font-size: 15px; font-weight: 700; color: var(--ink); margin: 12px 0 4px; display: flex; align-items: center; gap: 8px; }
+  .tditem { background: transparent; border: 0; border-top: 1px solid var(--line); padding: 14px 4px; cursor: pointer;
+    display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; text-align: left; font: inherit; color: inherit; width: 100%; transition: background .15s; border-radius: 0; }
+  .tdgroup + .tditem { border-top: 0; }
+  .tditem:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .tditem.done { opacity: .72; }
+  .tditem.noopen { cursor: default; grid-template-columns: 58px minmax(0, 1fr); }
+  .tditem.noopen:hover { background: transparent; }
+  .tditem.late .tdtime { color: var(--err); }
+  .tdtime { font-weight: 700; font-size: 13.5px; text-align: center; color: var(--ink2); font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .tdtime small { display: block; color: var(--muted); font-weight: 500; font-size: 11.5px; }
+  .tditem .t1 { font-weight: 700; font-size: 14.5px; word-break: break-word; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .subj { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--chip); color: var(--ink2); }
+  .subj.phy { background: var(--phy-bg); color: var(--phy); } .subj.che { background: var(--che-bg); color: var(--che); } .subj.bio { background: var(--bio-bg); color: var(--bio); }
+  .tditem .t2 { font-size: 13px; color: var(--muted); word-break: break-word; }
+  .tditem .code { font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .tditem .go { font-size: 13px; color: #fff; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #5372ff, var(--accent)); padding: 8px 14px; border-radius: 10px; box-shadow: 0 6px 14px -4px rgba(59,91,253,.45); }
+  .tdbadges { grid-column: 2 / 3; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tdtop .inp { width: auto; min-width: 150px; min-height: 38px; font-size: 14px; }
+  .tdfilter button { white-space: nowrap; }
+  #v-np .actions .tabs { margin-right: auto; }
+  .dpplist { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
+  .dpprow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  .dpprow:hover { border-color: var(--accent); }
+  .dpprow.on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .dpprow input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .dppmain { flex: 1; min-width: 0; }
+  .dppmain .t1 { font-weight: 600; word-break: break-word; }
+  .dppmain .code { font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .dppside { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .dppfoot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+  .dppfoot #dppCount { margin-right: auto; font-size: 13px; }
+  .dppmain .code { word-break: break-all; }
+  .thcanvas { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: var(--chip); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .vpdlg { width: min(980px, calc(100% - 24px)); }
+  .shdlg { width: calc(100% - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; }
+  .shdlg .dlg { height: 100%; max-height: none; }
+  .shdlg iframe { flex: 1; width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 300px; }
+  .fgroup { margin-bottom: 18px; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+  .fitem { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); flex-wrap: wrap; }
+  .fitem .nm { flex: 1 1 120px; min-width: 120px; font-weight: 600; word-break: break-word; }
+  @media (max-width: 600px) { .fgrid { grid-template-columns: 1fr; } }
+  .vphead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .vpwrap { background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; }
+  .vpwrap video { width: 100%; height: 100%; display: block; background: #000; }
+  .vpbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .vpnow { font-size: 14px; } .vpnow b { font-variant-numeric: tabular-nums; font-size: 16px; }
+  .vpseek { display: flex; gap: 6px; }
+  .vpkey { font-size: 11px; opacity: .75; border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; }
+  @media (max-width: 600px) { .dpprow { flex-wrap: wrap; } .dppmain { flex: 1 1 calc(100% - 40px); } .dppside { width: 100%; justify-content: flex-start; padding-left: 30px; } }
+  @media (max-width: 760px) { .lec { grid-template-columns: 1fr; } }
+  @media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 860px) {
+    .app { display: block; }
+    .side { position: fixed; left: 0; right: 0; bottom: 0; top: auto; height: auto; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); flex-direction: row; overflow: visible;
+      background: var(--card); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(15,23,42,.06); }
+    .side .brand, .side-foot, #nav .nsec { display: none; }
+    #nav { flex-direction: row; width: 100%; overflow-x: auto; scrollbar-width: none; gap: 0; justify-content: space-around; }
+    #nav::-webkit-scrollbar { display: none; }
+    #nav button { flex-direction: column; gap: 3px; font-size: 10.5px; padding: 6px 8px; color: var(--muted); min-width: 62px; align-items: center; }
+    #nav button:hover { background: transparent; color: var(--ink); }
+    #nav button.on { background: transparent; color: var(--accent); box-shadow: none; }
+    .topbar { padding: 12px 16px 0; }
+    .topbar .mlogo { display: grid; width: 32px; height: 32px; font-size: 14px; border-radius: 9px; box-shadow: none; }
+    main { padding-bottom: 96px; }
+  }
+  @media (max-width: 600px) {
+    main { padding-left: 16px; padding-right: 16px; }
+    .tditem { grid-template-columns: 48px minmax(0, 1fr); }
+    .tditem .go { grid-column: 2; justify-self: start; padding: 6px 12px; }
+    .tdbadges { grid-column: 1 / -1; }
+    .tdlist { padding: 4px 12px; }
+    #topDate { display: none; }
+    .topbar { flex-wrap: wrap; }
+    .envsw { margin-right: auto; }
+    .topbar .btn { flex: none; }
+    .tdtop #tdDate { flex: 1 1 100%; order: -1; }
+    .kpi .v { font-size: 22px; }
+    .grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .actions .btn { flex: 1; }
+    .tdtop .inp { flex: 1; min-width: 0; }
+    .phead h1 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand">
+    <div class="logo">B</div>
+    <div><div class="brand-name">Batch OPS</div><div class="brand-sub">NEET Dropper 2027</div></div>
+  </div>
+  <nav id="nav">
+    <div class="nsec">Daily work</div>
+    <button data-v="today"><i data-ic="calendar"></i>Today</button>
+    <button data-v="lec" class="on"><i data-ic="video"></i>Lecture Push</button>
+    <button data-v="dpp"><i data-ic="dpp"></i>DPP</button>
+    <button data-v="thumb"><i data-ic="layers"></i>Video Image</button>
+    <div class="nsec">Paths &amp; files</div>
+    <button data-v="np"><i data-ic="route"></i>NodePath</button>
+    <button data-v="files"><i data-ic="file"></i>Sheets</button>
+    <div class="nsec">Control</div>
+    <button data-v="adm" id="navAdm" hidden><i data-ic="shield"></i>Admin</button>
+  </nav>
+  <div class="side-foot"><div id="envTag" class="envtag" hidden>STAGE</div><div id="who">Loading…</div><div id="tokState"><i></i><span>Token: checking…</span></div></div>
+</aside>
+<div class="content">
+<div class="topbar">
+  <div class="logo mlogo">B</div>
+  <div id="topDate"></div>
+  <div class="tabs envsw" id="envSw" title="Which Internal Metrics server your pushes go to">
+    <button data-e="PROD" class="on">Production</button><button data-e="STAGE">Stage</button>
+  </div>
+  <button class="btn sm" id="ccBtn" title="Clear the Internal Metrics cache"><i data-ic="refresh"></i>Clear Cache</button>
+  <button class="btn sm tokbtn" id="tokBtn" title="Internal Metrics token"><i data-ic="key"></i>Token</button>
+  <button class="btn sm icon-only" id="outBtn" title="Sign out" aria-label="Sign out"><i data-ic="logout"></i></button>
+</div>
+
+<main>
+  <div id="stageBar" class="stagebar" hidden></div>
+  <div id="freezeBar" class="freezebar" hidden></div>
+  <div id="authBar" class="authbar" hidden></div>
+  <!-- ============ TODAY ============ -->
+  <section id="v-today" hidden>
+    <div class="phead"><h1>Today</h1><p>Classes scheduled in the live sheets and what is still pending for each one.</p></div>
+    <div class="actions tdtop">
+      <button class="btn icon-only" id="tdPrev" title="Previous day" aria-label="Previous day"><i data-ic="left"></i></button>
+      <input type="date" class="inp" id="tdDate">
+      <button class="btn icon-only" id="tdNext" title="Next day" aria-label="Next day"><i data-ic="right"></i></button>
+      <button class="btn" id="tdToday">Today</button>
+      <button class="btn" id="tdReload"><i data-ic="refresh"></i>Refresh</button>
+      <div class="tabs tdfilter" id="tdFilter">
+        <button data-f="pending" class="on">Pending</button>
+        <button data-f="all">All</button>
+      </div>
+    </div>
+    <div class="hint" id="tdNow" style="margin-bottom:8px"></div>
+    <div class="kpis" id="tdSum"></div>
+    <div class="tdlist" id="tdList"><div class="center"><span class="spin"></span> Loading…</div></div>
+    <div class="hint" id="tdLegend" style="margin-top:14px"></div>
+  </section>
+
+  <!-- ============ LECTURE PUSH ============ -->
+  <section id="v-lec">
+    <div class="phead"><h1>Lecture Push</h1><p>Enter the lecture timings and PDF, review the preview, then push to Internal Metrics.</p></div>
+    <div class="actions">
+      <div class="tabs" id="lang">
+        <button data-l="ENG" class="on">English</button>
+        <button data-l="HIN">Hindi</button>
+      </div>
+      <button class="btn" id="lecReload"><i data-ic="refresh"></i>Reload from sheet</button>
+      <button class="btn" id="lecWipe"><i data-ic="eraser"></i>Clear dashboard</button>
+    </div>
+
+    <div class="lec">
+      <div class="card">
+        <div class="head"><div class="icon"><i data-ic="video"></i></div><div class="title">Lecture details<small>Code, timings and notes PDF</small></div></div>
+        <label class="lbl" for="fCode">Lecture code</label>
+        <input id="fCode" class="inp mono" placeholder="Enter lecture code" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <div class="err" id="codeErr" hidden></div>
+        <div class="link" id="fLink"><span class="muted">Video links (SSD / 480p / 720p) will appear here</span></div>
+
+        <div class="tgrid">
+          <div class="tlabel">Video Start</div>
+          <input class="inp t" id="s0" inputmode="numeric" placeholder="hh">
+          <input class="inp t" id="s1" inputmode="numeric" placeholder="mm">
+          <input class="inp t" id="s2" inputmode="numeric" placeholder="ss">
+          <div class="tlabel">Video End</div>
+          <input class="inp t" id="e0" inputmode="numeric" placeholder="hh">
+          <input class="inp t" id="e1" inputmode="numeric" placeholder="mm">
+          <input class="inp t" id="e2" inputmode="numeric" placeholder="ss">
+        </div>
+        <div class="hint">Hours · Minutes · Seconds (empty = 0)</div>
+
+        <div id="pdfSec">
+        <label class="lbl" for="fPdf">PDF <span class="muted">(AWS key or full URL)</span></label>
+        <input id="fPdf" class="inp" placeholder="NEET_pdf/…/2027NEET…ML1" autocomplete="off" spellcheck="false">
+        <div class="link" id="pdfFinal"><span class="muted">Final URL preview</span></div>
+        <div class="pdfbtns">
+          <button class="btn" id="pdfImport"><i data-ic="download"></i>Import from main sheet</button>
+          <button class="btn" id="pdfUpdate"><i data-ic="upload"></i>Update on main sheet</button>
+        </div>
+        <div class="hint" id="pdfHint">If filled, this PDF is used for the push and is also updated in the live sheet after "Update on Sheet and Internal Metrics". If empty, the sheet PDF (S7/T13) is used.</div>
+        </div>
+
+        <div class="saverow">
+          <button class="btn primary" id="lecSave"><i data-ic="link"></i>Click here for links</button>
+          <button class="btn danger" id="lecClear"><i data-ic="trash"></i>Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head"><div class="icon"><i data-ic="layers"></i></div><div class="title">Data built in sheet <small id="rowLang">English · row 7</small></div></div>
+        <div class="kv" id="rowKv"></div>
+        <div class="sect" id="pushTitle">Push</div>
+        <div class="hint">Check preview by clicking on Update on Sheet and Internal Metrics</div>
+        <div class="pushes">
+          <button class="btn primary pushboth" data-push="both"><i data-ic="send"></i>Push Lecture + Nodes<span class="pbsub">Update on Sheet &amp; Internal Metrics, then Push Nodes</span></button>
+          <div class="pushsep" id="pushSep">or one at a time</div>
+          <button class="btn" data-push="dashboard"><i data-ic="send"></i>Update on Sheet and Internal Metrics</button>
+          <button class="btn" data-push="nodes"><i data-ic="nodes"></i>Push Nodes</button>
+          <div class="pushsep" id="dppSep">DPP – push when the DPP arrives (end of day)</div>
+          <button class="btn" data-push="dpp"><i data-ic="dpp"></i>Push DPP</button>
+        </div>
+        <div id="lecLog" class="log"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DPP ============ -->
+  <section id="v-dpp" hidden>
+    <div class="phead"><h1>DPP</h1><p>Choose which DPPs run on Internal Metrics. Only the selected DPPs are uploaded – the file stays small.</p></div>
+    <div class="actions">
+      <div class="tabs" id="dppSubj"><button data-s="PHY">Physics</button><button data-s="CHE">Chemistry</button><button data-s="BIO">Biology</button></div>
+      <div class="tabs" id="dppLang"><button data-l="HIN">Hindi</button><button data-l="ENG">English</button></div>
+      <button class="btn" id="dppReload"><i data-ic="refresh"></i>Reload</button>
+    </div>
+    <div class="card">
+      <div class="hint" id="dppMeta" style="margin:0"></div>
+      <div class="actions" style="margin:0">
+        <input class="inp" id="dppSearch" placeholder="Search name or Id" style="flex:1;min-width:180px">
+        <div class="tabs" id="dppFilter"><button data-f="near">Around today</button><button data-f="sel">Selected</button><button data-f="all" class="on">All</button></div>
+      </div>
+      <div id="dppList" class="dpplist"><div class="center">Open this tab to load the DPP list.</div></div>
+      <div class="dppfoot">
+        <div id="dppCount" class="muted"></div>
+        <button class="btn" id="dppSave"><i data-ic="save"></i>Save to sheet</button>
+        <button class="btn primary" id="dppGo"><i data-ic="upload"></i>Upload selected DPP</button>
+      </div>
+    </div>
+    <div id="dppResult"></div>
+  </section>
+
+  <!-- ============ VIDEO IMAGE ============ -->
+  <section id="v-thumb" hidden>
+    <div class="phead"><h1>Video Image</h1><p>Make the chapter thumbnail in the standard template: a thumbnail of the same teacher is used as the base and only the title and name are changed.</p></div>
+    <div class="lec">
+      <div class="card">
+        <label class="lbl" for="thCode">Lecture code</label>
+        <div class="actions" style="margin:0"><input class="inp mono" id="thCode" placeholder="e.g. 2027NEETPHYENGLIVE31" style="flex:1;min-width:200px" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn primary" id="thLoad"><i data-ic="search"></i>Load</button></div>
+        <div class="hint" id="thMeta" style="margin:0"></div>
+        <label class="lbl" for="thTitle">Chapter title</label>
+        <input class="inp" id="thTitle" placeholder="KINEMATICS - II">
+        <label class="lbl" for="thTeacher">Teacher name</label>
+        <input class="inp" id="thTeacher" placeholder="SURYABHAN SIR">
+        <label class="lbl" for="thBase">Base image (thumbnail of the same teacher)</label>
+        <select class="inp" id="thBase"><option value="">Load a lecture first</option></select>
+        <input class="inp" id="thBaseUrl" placeholder="Paste a thumbnail link of this teacher (https://…)" hidden>
+        <label class="lbl" for="thSize">Title size <span class="muted">(auto-fit · slide to fine-tune)</span></label>
+        <input type="range" id="thSize" min="60" max="120" value="100">
+        <div id="thStatus" class="hint" style="margin:0"></div>
+      </div>
+      <div class="card">
+        <div class="head"><div class="icon"><i data-ic="layers"></i></div><div class="title">Preview<small id="thPreviewNote">–</small></div></div>
+        <canvas id="thCanvas" class="thcanvas" width="662" height="396"></canvas>
+        <button class="btn primary" id="thDl"><i data-ic="download"></i>Download PNG</button>
+        <div class="hint" id="thCur" style="margin:0"></div>
+        <div class="sect">After uploading the PNG</div>
+        <div class="actions" style="margin:0"><input class="inp" id="thLink" placeholder="Paste the uploaded image link (https://…)" style="flex:1;min-width:200px"><button class="btn" id="thSave"><i data-ic="save"></i>Save to sheet</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SHEETS ============ -->
+  <section id="v-files" hidden>
+    <div class="phead"><h1>Sheets</h1><p>All working sheets in one place. Open a sheet in a new tab, or view and edit it right here.</p></div>
+    <div id="filesList"><div class="center"><span class="spin"></span> Loading…</div></div>
+  </section>
+
+  <!-- ============ ADMIN (UI is loaded from Admin.html) ============ -->
+  <section id="v-adm" hidden>
+    <div class="phead"><h1>Admin</h1><p>Users, feature access, tokens, safety controls and the activity log.</p></div>
+    <div id="admHost" class="center"><span class="spin"></span> Loading…</div>
+  </section>
+
+  <!-- ============ NODEPATH ============ -->
+  <section id="v-np" hidden>
+    <div class="phead"><h1>NodePath</h1><p>Keep the NodePath sheets in sync with the live sheets and upload them to Internal Metrics.</p></div>
+    <div class="card upcard" id="upCard">
+      <div class="head"><div class="icon"><i data-ic="upload"></i></div><div class="title">Upload to Internal Metrics<small>Uploads the whole NodePath file (.xlsx). Only subjects with update = yes are processed by Internal Metrics.</small></div></div>
+      <div class="actions" style="margin:0">
+        <div class="tabs" id="upLang">
+          <button data-l="ENG" class="on">English</button>
+          <button data-l="HIN">Hindi</button>
+        </div>
+        <button class="btn" id="upReload"><i data-ic="refresh"></i>Reload</button>
+      </div>
+      <div id="upInfo" class="center" style="padding:14px"><span class="spin"></span> Loading…</div>
+      <div class="pdfbtns">
+        <button class="btn primary" id="upGo"><i data-ic="upload"></i>Upload to Internal Metrics</button>
+        <button class="btn" id="upCheck"><i data-ic="search"></i>Check status</button>
+      </div>
+      <div id="upStatus"></div>
+      <details id="upHistWrap"><summary>Upload history (last 10)</summary><div id="upHist" class="log" style="margin-top:8px"></div></details>
+    </div>
+
+    <div id="npMain">
+    <div class="actions">
+      <div class="tabs" id="tabs">
+        <button data-f="ALL" class="on">All</button>
+        <button data-f="HIN">Hindi</button>
+        <button data-f="ENG">English</button>
+      </div>
+      <button class="btn" id="refreshAll"><i data-ic="refresh"></i>Refresh all</button>
+      <button class="btn primary" id="applyAll"><i data-ic="check"></i>Update all</button>
+    </div>
+    <div id="grid" class="grid"><div class="center"><span class="spin"></span> Loading…</div></div>
+    </div>
+  </section>
+</main>
+</div>
+</div>
+
+<dialog id="tokDlg">
+  <div class="dlg">
+    <h3 id="tokTitle">Your Internal Metrics token</h3>
+    <div class="err" id="tokErr" hidden></div>
+    <div class="kv" id="tokKv"><span>Status</span><b>Checking…</b></div>
+    <label class="lbl" for="tokIn">New token</label>
+    <input id="tokIn" class="inp mono" type="password" placeholder="Paste avtoken here" autocomplete="off" spellcheck="false">
+    <div class="hint" id="tokHint">Open Internal Metrics → DevTools (F12) → Network → click any request → Request Headers → copy the value of <b>avtoken</b>. Only you can see your token; pushes you make will use it.</div>
+    <div class="row">
+      <button class="btn" id="tokClear">Remove my token</button>
+      <button class="btn" id="tokClose">Close</button>
+      <button class="btn primary" id="tokSave">Save &amp; test</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h3 id="dlgTitle"></h3>
+    <div class="body" id="dlgBody"></div>
+    <div class="row">
+      <button class="btn" id="dlgNo">Cancel</button>
+      <button class="btn primary" id="dlgYes">Yes, update</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="shDlg" class="shdlg">
+  <div class="dlg">
+    <div class="vphead"><h3 id="shTitle">Sheet</h3><div style="display:flex;gap:6px"><a class="btn sm" id="shNew" target="_blank" rel="noopener">Open in new tab</a><button class="btn sm" id="shClose">Close</button></div></div>
+    <iframe id="shFrame" title="Google Sheet" allow="clipboard-read; clipboard-write"></iframe>
+    <div class="hint" style="margin:0">If the sheet stays blank or asks you to sign in, your browser is blocking Google Sheets inside the dashboard – use "Open in new tab".</div>
+  </div>
+</dialog>
+<dialog id="vpDlg" class="vpdlg">
+  <div class="dlg">
+    <div class="vphead"><h3>Watch &amp; set time</h3><button class="btn sm" id="vpClose">Close</button></div>
+    <div class="vpwrap"><video id="vpVideo" controls playsinline preload="metadata"></video></div>
+    <div class="err" id="vpErr" hidden></div>
+    <div class="vpbar">
+      <div class="vpnow">Current time <b id="vpNow">0:00:00</b></div>
+      <div class="vpseek">
+        <button class="btn sm" data-seek="-10">−10s</button><button class="btn sm" data-seek="-1">−1s</button>
+        <button class="btn sm" data-seek="1">+1s</button><button class="btn sm" data-seek="10">+10s</button>
+      </div>
+    </div>
+    <div class="pdfbtns">
+      <button class="btn primary" id="vpSetStart">Set as Video Start <span class="vpkey">S</span></button>
+      <button class="btn primary" id="vpSetEnd">Set as Video End <span class="vpkey">E</span></button>
+    </div>
+    <div class="hint" id="vpInfo" style="margin:0">Keys: Space = play / pause · → / ← = +10 s / −10 s · ↑ / ↓ = +1 s / −1 s · S = set Start · E = set End. The time is filled into the form – click "Click here for links" or a push button to save it.</div>
+  </div>
+</dialog>
+<dialog id="dppDlg">
+  <div class="dlg">
+    <h3 id="dppDlgT">Change date &amp; time</h3>
+    <div class="hint" id="dppDlgS" style="margin:0"></div>
+    <label class="lbl" for="dppD">Live date</label>
+    <input type="date" class="inp" id="dppD">
+    <div class="pdfbtns">
+      <div><label class="lbl" for="dppS">Start time</label><input type="time" step="1" class="inp" id="dppS"></div>
+      <div><label class="lbl" for="dppE">End time</label><input type="time" step="1" class="inp" id="dppE"></div>
+    </div>
+    <div class="err" id="dppDlgErr" hidden></div>
+    <div class="row">
+      <button class="btn" id="dppDlgNo">Cancel</button>
+      <button class="btn primary" id="dppDlgYes">Save</button>
+    </div>
+  </div>
+</dialog>
+<div id="toast"></div>
+<div id="login" class="login" hidden>
+  <div class="logincard">
+    <div class="logo" style="margin:0 auto 14px;width:52px;height:52px;font-size:22px">B</div>
+    <h2>Batch OPS</h2>
+    <p>NEET Dropper 2027 · sign in with your Google account</p>
+    <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
+    <div class="err" id="loginErr" hidden style="margin-top:12px;text-align:left"></div>
+    <p class="hint" style="margin-top:14px">Only accounts added by an admin can use the dashboard.</p>
+  </div>
+</div>
+
+<script>
+  var ICON = { PHYSICS: 'atom', CHEMISTRY: 'flask', BIOLOGY: 'leaf' };
+  // ---------- Icons (line icons, no emoji) ----------
+  var ICONS = {
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8z"/>',
+    route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+    refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+    eraser: '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7M5 11l9 9"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
+    send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+    nodes: '<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M6 9v3a3 3 0 0 0 3 3h6"/>',
+    dpp: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    left: '<path d="m15 18-6-6 6-6"/>',
+    right: '<path d="m9 18 6-6-6-6"/>',
+    check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+    atom: '<circle cx="12" cy="12" r="1"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>',
+    flask: '<path d="M9 2h6M10 2v6L4 20a1 1 0 0 0 .9 1.5h14.2A1 1 0 0 0 20 20L14 8V2"/><path d="M7 15h10"/>',
+    leaf: '<path d="M11 20A7 7 0 0 1 4 13c0-6 7-11 16-11 0 9-5 16-11 16z"/><path d="M2 22c3-5 6-8 11-11"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+    sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    stop: '<path d="M7.9 2h8.2L22 7.9v8.2L16.1 22H7.9L2 16.1V7.9z"/><path d="M12 8v4M12 16h.01"/>',
+    timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+    lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    arrow: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+    play: '<path d="m6 3 14 9-14 9z"/>',
+    layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>'
+  };
+  function ic(name, cls) {
+    return '<span class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[name] || '') + '</svg></span>';
+  }
+  function hydrateIcons(root) {
+    Array.prototype.forEach.call((root || document).querySelectorAll('i[data-ic]'), function (el) {
+      var t = document.createElement('span'); t.innerHTML = ic(el.getAttribute('data-ic')); el.parentNode.replaceChild(t.firstChild, el);
+    });
+  }
+/** button label + icon (restored after a busy state) */
+  function btnLabel(id, icon, text) { $(id).innerHTML = ic(icon) + esc(text); }
+
+  var state = { subjects: [], data: {}, busy: {}, filter: 'ALL' };
+
+  // Server call (same function names as in Apps Script). Errors come back as text, like google.script.run.
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return fetch('/api/rpc', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
+                               body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) {
+        return r.json().catch(function () { return { ok: false, error: 'Server error (HTTP ' + r.status + ')' + (r.status === 504 ? ' – the action took too long' : '') }; })
+          .then(function (j) {
+            if (r.status === 401 || j.error === 'SIGN_IN_REQUIRED') { showLogin('Your session has ended – please sign in again.'); throw 'Please sign in again.'; }
+            if (!j.ok) throw String(j.error || 'Unknown error');
+            return j.value;
+          });
+      }, function () { throw 'Network error – check your internet connection and try again.'; });
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function toast(msg) {
+    var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 3000);
+  }
+  // yesLabel = null -> information only (single OK button). delayMs = keep Yes disabled this long (prevents accidental double clicks)
+  function confirmBox(title, body, yesLabel, delayMs) {
+    return new Promise(function (ok) {
+      var d = document.getElementById('dlg'), yes = document.getElementById('dlgYes'), no = document.getElementById('dlgNo');
+      var done = false, finish = function (v) { if (done) return; done = true; ok(v); };
+      document.getElementById('dlgTitle').textContent = title;
+      document.getElementById('dlgBody').textContent = body;
+      var label = yesLabel === null ? 'OK' : (yesLabel || 'Yes, update');
+      if (yesLabel === null) no.style.display = 'none'; else no.style.display = '';
+      yes.textContent = label;
+      yes.disabled = false;
+      if (delayMs) {
+        yes.disabled = true;
+        var left = Math.ceil(delayMs / 1000);
+        yes.textContent = label + ' (' + left + ')';
+        var iv = setInterval(function () {
+          left--;
+          if (left <= 0) { clearInterval(iv); yes.disabled = false; yes.textContent = label; }
+          else yes.textContent = label + ' (' + left + ')';
+        }, 1000);
+      }
+      yes.onclick = function () { d.close(); finish(yesLabel !== null); };
+      no.onclick = function () { d.close(); finish(false); };
+      d.onclose = function () { finish(false); };
+      if (d.open) d.close();
+      d.showModal();
+    });
+  }
+
+  // Double confirmation: first confirm, then "Are you sure?" (Yes is enabled after 2 seconds)
+  function confirmBox2(title, body, yesLabel) {
+    return confirmBox(title, body, yesLabel).then(function (y) {
+      if (!y) return false;
+      return new Promise(function (r) { setTimeout(r, 150); }).then(function () {
+        return confirmBox('Please confirm again', 'Second confirmation – this action will be carried out now:\n\n' + title, 'Yes, I am sure', 2000);
+      });
+    });
+  }
+
+  function cardHtml(s) {
+    var d = state.data[s.key] || {}, busy = state.busy[s.key];
+    var st, cls;
+    if (busy) { st = '<span class="spin"></span> ' + busy; cls = 's-load'; }
+    else if (d.error) { st = 'Error'; cls = 's-err'; }
+    else if (!d.res) { st = 'Loading'; cls = 's-load'; }
+    else if (d.res.applied) { st = 'Updated'; cls = 's-ok'; }
+    else if (d.res.totalChanges) { st = d.res.totalChanges + ' changes pending'; cls = 's-todo'; }
+    else { st = 'Up to date'; cls = 's-ok'; }
+
+    var r = d.res, h = '';
+    h += '<div class="head"><div class="icon">' + ic(ICON[s.subject] || 'book') + '</div>' +
+         '<div class="title">' + esc(s.label.replace(/\s*\(.*\)/, '')) + '<small>' + (s.lang === 'HIN' ? 'Hindi' : 'English') +
+         (r ? ' · ' + esc(r.sheet) : '') + '</small></div>' +
+         '<span class="status ' + cls + '">' + st + '</span></div>';
+
+    if (d.error) h += '<div class="err">' + esc(d.error) + '</div>';
+    if (r) {
+      h += '<div class="stats">' +
+        '<div class="stat"><b>' + r.lectures + '</b><span>Lectures</span></div>' +
+        '<div class="stat"><b>' + r.recorded + '</b><span>Recorded</span></div>' +
+        '<div class="stat"><b>' + r.upcoming + '</b><span>Upcoming</span></div>' +
+        '<div class="stat"><b>' + r.rows + '</b><span>Rows</span></div></div>';
+      if (r.lines && r.lines.length) {
+        h += '<ul class="list">' + r.lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>';
+      }
+      (r.warnings || []).forEach(function (w) { h += '<div class="warn">' + esc(w) + '</div>'; });
+      if (r.changes && r.changes.length) {
+        h += '<details><summary>Detail (' + r.changes.length + ')</summary><pre>' + esc(r.changes.join('\n')) + '</pre></details>';
+      }
+      h += '<div class="meta">' + (r.applied ? 'Update: ' : 'Checked: ') + esc(r.checkedAt || r.time) + (r.cached && !r.applied ? ' · saved result – press Check to refresh' : '') + '</div>';
+    }
+    var dis = busy ? ' disabled' : '';
+    var canApply = r && !r.applied && r.totalChanges && !busy;
+    h += '<div class="foot"><button class="btn" data-act="preview" data-k="' + s.key + '"' + dis + '>' + ic('refresh') + 'Check</button>' +
+         '<button class="btn primary" data-act="apply" data-k="' + s.key + '"' + (canApply ? '' : ' disabled') + '>Update</button></div>';
+    return h;
+  }
+
+  function render() {
+    var g = document.getElementById('grid');
+    var list = state.subjects.filter(function (s) { return state.filter === 'ALL' || s.lang === state.filter; });
+    g.innerHTML = list.map(function (s) { return '<div class="card" id="c-' + s.key + '">' + cardHtml(s) + '</div>'; }).join('');
+    var any = Object.keys(state.busy).some(function (k) { return state.busy[k]; });
+    document.getElementById('refreshAll').disabled = any;
+    document.getElementById('applyAll').disabled = any;
+  }
+  function renderOne(key) {
+    var el = document.getElementById('c-' + key);
+    var s = state.subjects.filter(function (x) { return x.key === key; })[0];
+    if (el && s) el.innerHTML = cardHtml(s);
+    var any = Object.keys(state.busy).some(function (k) { return state.busy[k]; });
+    document.getElementById('refreshAll').disabled = any;
+    document.getElementById('applyAll').disabled = any;
+  }
+
+  function preview(key, force) {
+    state.busy[key] = 'Check'; renderOne(key);
+    return call('webPreview', key, !!force).then(function (res) { state.data[key] = { res: res }; })
+      .catch(function (e) { state.data[key] = { error: e }; if (isTokenErr(e)) openToken('Your token has expired or is invalid (401). Paste a new token to continue.'); })
+      .then(function () { state.busy[key] = null; renderOne(key); });
+  }
+  function apply(key) {
+    state.busy[key] = 'Update'; renderOne(key);
+    return call('webApply', key).then(function (res) { state.data[key] = { res: res }; toast(res.label + ' updated'); return true; })
+      .catch(function (e) { state.data[key] = { error: e }; toast('Error: ' + e); return false; })
+      .then(function (ok) { state.busy[key] = null; renderOne(key); return ok; });
+  }
+  function visible() { return state.subjects.filter(function (s) { return state.filter === 'ALL' || s.lang === state.filter; }); }
+
+  document.getElementById('grid').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]'); if (!b) return;
+    var key = b.getAttribute('data-k');
+    if (b.getAttribute('data-act') === 'preview') return preview(key, true);
+    var r = (state.data[key] || {}).res; if (!r) return;
+    var body = r.lines.join('\n') + (r.warnings && r.warnings.length ? '\n\n' + r.warnings.join('\n') : '');
+    confirmBox2(r.label + ' – these changes will be made', body).then(function (ok) { if (ok) apply(key); });
+  });
+
+  document.getElementById('refreshAll').onclick = function () { visible().forEach(function (s) { preview(s.key, true); }); };
+
+  document.getElementById('applyAll').onclick = function () {
+    var todo = visible().filter(function (s) { var r = (state.data[s.key] || {}).res; return r && !r.applied && r.totalChanges; });
+    if (!todo.length) { toast('Nothing to update'); return; }
+    var body = todo.map(function (s) { var r = state.data[s.key].res; return '• ' + r.label + '\n' + r.lines.join('\n'); }).join('\n\n');
+    confirmBox2(todo.length + ' subjects will be updated', body).then(function (ok) {
+      if (!ok) return;
+      todo.reduce(function (p, s) { return p.then(function () { return apply(s.key); }); }, Promise.resolve());
+    });
+  };
+
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state.filter = b.getAttribute('data-f');
+    try { localStorage.setItem('np_filter', state.filter); } catch (x) {}
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    render();
+  });
+
+  // ======================= LECTURE PUSH =======================
+  var lec = { lang: 'ENG', busy: false };
+  var PUSH_NAME = { dashboard: 'Update on Sheet and Internal Metrics', nodes: 'Push Nodes', dpp: 'Push DPP', both: 'Push Lecture + Nodes' };
+  function $(id) { return document.getElementById(id); }
+
+  function lecBusy(on, label) {
+    lec.busy = on;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function (b) { b.disabled = on; });
+    ['lecSave', 'lecReload', 'lecClear', 'lecWipe', 'pdfImport', 'pdfUpdate'].forEach(function (id) { $(id).disabled = on; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-push]'), function (b) { b.disabled = on; });
+    Array.prototype.forEach.call($('lang').children, function (b) { b.disabled = on; });
+    $('lecSave').innerHTML = on && label ? '<span class="spin"></span> ' + esc(label) : ic('link') + 'Click here for links';
+  }
+  function lecLog(title, text, kind) {
+    var e = document.createElement('div');
+    e.className = 'entry' + (kind ? ' ' + kind : '');
+    e.innerHTML = '<b>' + esc(title) + ' · ' + new Date().toLocaleTimeString() + '</b>' + esc(text);
+    $('lecLog').insertBefore(e, $('lecLog').firstChild);
+    while ($('lecLog').children.length > 6) $('lecLog').removeChild($('lecLog').lastChild);
+  }
+  function fillLec(d) {
+    var typed = $('fCode').value.trim().toUpperCase();   // code that was in the form before saving
+    $('fCode').value = d.code || '';
+    $('fCode').placeholder = 'e.g. 2027NEETPHY' + (d.lang === 'HIN' ? 'HIN' : 'ENG') + 'LIVE31';
+    [0, 1, 2].forEach(function (i) { $('s' + i).value = d.start[i] || ''; $('e' + i).value = d.end[i] || ''; });
+    var links = d.links || (d.link ? [{ label: '720p', url: d.link }] : []);
+    var anyLink = links.some(function (x) { return /^https?:\/\//.test(x.url); });
+    var playUrl = (links.filter(function (x) { return /720/.test(x.label) && /^https?:\/\//.test(x.url); })[0] ||
+                   links.filter(function (x) { return /^https?:\/\//.test(x.url); })[0] || {}).url || '';
+    lec.playUrl = playUrl;
+    $('fLink').innerHTML = anyLink ? links.map(function (x) {
+        return '<div><span class="muted">' + esc(x.label) + ':</span> ' + (/^https?:\/\//.test(x.url)
+          ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.url) + '</a>' : '<span class="muted">not available yet</span>') + '</div>';
+      }).join('') + (playUrl ? '<button class="btn sm primary" id="vpOpen" style="margin-top:8px">' + ic('play') + 'Watch & set Start / End time</button>' : '')
+      : '<span class="muted">Video links (SSD / 480p / 720p) will appear here</span>';
+    var r = d.row;
+    $('rowLang').textContent = (d.lang === 'HIN' ? 'Hindi · row 13' : 'English · row 7');
+    $('rowKv').innerHTML =
+      '<span>Lecture code</span><b>' + esc(r.lectureCode || '—') + '</b>' +
+      '<span>Default start</span><b>' + esc(r.defaultStart || '—') + '</b>' +
+      '<span>Video start</span><b>' + esc(r.videoStart || '—') + '</b>' +
+      '<span>Video end</span><b>' + esc(r.videoEnd || '—') + '</b>' +
+      '<span>PDF</span><b>' + esc(r.pdf || '—') + '</b>';
+    if ((d.code || '').toUpperCase() !== typed) { $('fPdf').value = ''; showPdfFinal(); }   // different lecture -> clear the old PDF
+    // PDF box empty -> show the sheet PDF (S7/T13)
+    if (!$('fPdf').value.trim() && /^https?:\/\//i.test(r.pdf || '')) { $('fPdf').value = r.pdf; showPdfFinal(); }
+    showCodeErr();
+    if (d.note) lecLog('Note', d.note, 'bad');
+  }
+  function formData() {
+    return {
+      code: $('fCode').value.trim().toUpperCase().replace(/ML\d+$/, ''),   // the sheet adds ML1 itself
+      start: [0, 1, 2].map(function (i) { return $('s' + i).value.trim(); }),
+      end: [0, 1, 2].map(function (i) { return $('e' + i).value.trim(); }),
+      pdf: ''
+    };
+  }
+  // Hindi codes only in the Hindi tab, English codes only in the English tab
+  function codeLangError(code, lang) {
+    code = String(code || '').trim().toUpperCase();
+    if (!code) return '';
+    var m = code.match(/^2027NEET(?:PHY|CHE|BIO)(HIN|ENG)/);
+    var nm = function (x) { return x === 'HIN' ? 'Hindi' : 'English'; };
+    if (!m) return 'Code format looks wrong (2027NEET + PHY/CHE/BIO + HIN/ENG …)';
+    if (m[1] !== lang) return 'This is a ' + nm(m[1]) + ' code. Enter it in the ' + nm(m[1]) + ' tab.';
+    return '';
+  }
+  function showCodeErr() {
+    var v = $('fCode').value.trim();
+    // while a code is being typed, only show a wrong-language error straight away
+    var err = codeLangError(v, lec.lang);
+    if (err && !/^2027NEET(?:PHY|CHE|BIO)(HIN|ENG)/i.test(v) && v.length < 15) err = '';
+    $('codeErr').textContent = err; $('codeErr').hidden = !err;
+    $('fCode').style.borderColor = err ? 'var(--err)' : '';
+    return err;
+  }
+  function validForm(f) {
+    var ce = codeLangError(f.code, lec.lang);
+    if (ce) { $('codeErr').textContent = ce; $('codeErr').hidden = false; $('fCode').style.borderColor = 'var(--err)'; toast(ce); return false; }
+    var bad = f.start.concat(f.end).filter(function (x) { return x !== '' && !/^\d+(\.\d+)?$/.test(x); });
+    if (bad.length) { toast('Use numbers only for time'); return false; }
+    // SAFETY: minutes/seconds 0-59, and End always after Start
+    var over = [f.start[1], f.start[2], f.end[1], f.end[2]].some(function (x) { return x !== '' && Number(x) > 59; });
+    if (over) { toast('Minutes and seconds must be 0–59'); return false; }
+    var sec = function (a) { return (Number(a[0]) || 0) * 3600 + (Number(a[1]) || 0) * 60 + (Number(a[2]) || 0); };
+    var st = sec(f.start), en = sec(f.end);
+    if (en > 0 && en <= st) { toast('Video End must be after Video Start'); lecLog('Check times', 'Video End (' + en + 's) must be after Video Start (' + st + 's). Nothing was saved.', 'bad'); return false; }
+    return true;
+  }
+  function lecLoad() {
+    lecBusy(true, 'Loading…');
+    return call('webLectureLoad', lec.lang).then(fillLec)
+      .catch(function (e) { lecLog('Load', e, 'bad'); })
+      .then(function () { lecBusy(false); });
+  }
+  function lecSave(quiet) {
+    var f = formData();
+    if (!validForm(f)) return Promise.reject('invalid');
+    f.refetch = true;                         // always ask Internal Metrics for the latest video link
+    lecBusy(true, 'Searching for links…');
+    return call('webLectureSave', lec.lang, f).then(function (d) {
+      fillLec(d); if (!quiet) toast('Saved to sheet'); lecBusy(false); return d;
+    }).catch(function (e) { lecBusy(false); lecLog('Save', e, 'bad'); throw e; });
+  }
+  // Lecture (dashboard) + Nodes in one go: both previews -> one double confirmation -> step 1, then step 2.
+  // Step 2 only runs when step 1 fully worked. DPP stays separate (it arrives at the end of the day).
+  function lecPushBoth() {
+    var L = lec.lang === 'HIN' ? 'Hindi' : 'English', lang = lec.lang;
+    var name = PUSH_NAME.both + ' (' + L + ')' + envTag();
+    var pdfKeyUsed = $('fPdf').value.trim();
+    var f = formData();
+    if (!validForm(f)) return;
+    var msgs = function (r) { return (r.messages || []).join('\n\n'); };
+    lecBusy(true, 'Save + preview…');
+    call('webPush', lang, 'dashboard', false, pdfKeyUsed, f).then(function (p1) {
+      if (p1.saved) fillLec(p1.saved);
+      if (p1.preview === null) return [p1, null];
+      lecBusy(true, 'Preview nodes…');
+      return call('webPush', lang, 'nodes', false, pdfKeyUsed, null).then(function (p2) { return [p1, p2]; });
+    }).then(function (r) {
+      lecBusy(false);
+      var p1 = r[0], p2 = r[1];
+      if (p1.preview === null) {
+        var t = msgs(p1) || 'Nothing happened.';
+        lecLog(name, 'Step 1 (lecture) cannot run, so nothing was pushed.\n\n' + t, 'bad');
+        return confirmBox(name, 'Step 1 (lecture update) cannot run, so nothing was pushed:\n\n' + t, null);
+      }
+      var nodesTxt = p2.preview !== null ? p2.preview : 'No change needed – nodes will be skipped.\n\n' + msgs(p2);
+      var body = 'STEP 1 – LIVE LECTURE\n\n' + p1.preview + '\n\n────────────────────\nSTEP 2 – NODES (only if step 1 works)\n\n' + nodesTxt +
+        '\n\n────────────────────\nDPP is NOT included – push it separately when the DPP arrives.';
+      return confirmBox2(name, body, 'Yes, push both').then(function (yes) {
+        if (!yes) { lecLog(name, 'Cancelled, nothing was pushed.'); return; }
+        lecBusy(true, 'Step 1/2: Lecture…');
+        return call('webPush', lang, 'dashboard', true, pdfKeyUsed, null, p1.snap).then(function (a) {
+          var t1 = msgs(a) || 'Done.';
+          var ok1 = /Lecture: Updated/.test(t1) && !/failed|⚠️/i.test(t1);
+          lecLog(PUSH_NAME.dashboard + ' (' + L + ')', t1, ok1 ? 'ok' : 'bad');
+          if (!ok1) {
+            lecBusy(false);
+            lecLog(name, 'Stopped after step 1 – nodes were NOT pushed. Fix the problem above, then try again.', 'bad');
+            toast('Lecture update had a problem – nodes were not pushed');
+            return;
+          }
+          if (p2.preview === null) {
+            lecBusy(false);
+            lecLog(PUSH_NAME.nodes + ' (' + L + ')', 'No change needed.\n\n' + msgs(p2));
+            toast('Lecture updated · nodes were already up to date');
+            return;
+          }
+          lecBusy(true, 'Step 2/2: Nodes…');
+          return call('webPush', lang, 'nodes', true, pdfKeyUsed, null, p2.snap).then(function (b) {
+            lecBusy(false);
+            var t2 = msgs(b) || 'Done.';
+            var bad2 = /failed|⚠️/i.test(t2);
+            lecLog(PUSH_NAME.nodes + ' (' + L + ')', t2, bad2 ? 'bad' : 'ok');
+            toast(bad2 ? 'Lecture updated, but nodes had a problem – check the log' : 'Lecture + Nodes pushed');
+          });
+        });
+      });
+    }).catch(function (e) {
+      lecBusy(false);
+      if (e !== 'invalid') lecLog(name, e, 'bad');
+    });
+  }
+  function lecPush(kind) {
+    if (kind === 'both') return lecPushBoth();
+    var name = PUSH_NAME[kind] + ' (' + (lec.lang === 'HIN' ? 'Hindi' : 'English') + ')' + envTag();
+    var pdfKeyUsed = $('fPdf').value.trim();   // same PDF for preview and push
+    var f = formData();
+    if (!validForm(f)) return;
+    lecBusy(true, 'Save + preview…');
+    // save the form + preview in one server call
+    call('webPush', lec.lang, kind, false, pdfKeyUsed, f).then(function (pv) {
+      lecBusy(false);
+      if (pv.saved) fillLec(pv.saved);
+      if (pv.preview === null) {               // nothing to push / error
+        var t = pv.messages.join('\n\n') || 'Nothing happened.';
+        lecLog(name, t, /fail|not found|skip|invalid|⚠️/i.test(t) ? 'bad' : '');
+        return confirmBox(name, t, null);
+      }
+      return confirmBox2(name, pv.preview, 'Yes, push').then(function (yes) {
+        if (!yes) { lecLog(name, 'Cancelled, nothing was pushed.'); return; }
+        lecBusy(true, 'Pushing…');
+        return call('webPush', lec.lang, kind, true, pdfKeyUsed, null, pv.snap).then(function (r) {
+          lecBusy(false);
+          var t = r.messages.join('\n\n') || 'Done.';
+          var bad = /failed|⚠️/i.test(t);
+          lecLog(name, t, bad ? 'bad' : 'ok');
+          toast(bad ? name + ': there was a problem, check the log' : name + '');
+        });
+      });
+    }).catch(function (e) {
+      lecBusy(false);
+      if (e !== 'invalid') lecLog(name, e, 'bad');
+    });
+  }
+
+  $('lang').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || lec.busy) return;
+    lec.lang = b.getAttribute('data-l');
+    try { localStorage.setItem('np_lang', lec.lang); } catch (x) {}
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    lecLoad();
+  });
+  $('lecReload').onclick = lecLoad;
+
+  // ---------- More tools (also available in the sheet menu) ----------
+  var TOOL_INFO = {
+    backup: ['Sheet backup only', 'Copies the current lecture row (row 7 / 13) to the backup tab in the live sheet and marks it RECORDED. Nothing is sent to Internal Metrics.'],
+    nodesheet: ['Node sheet update only', 'Updates the NodePath sheet rows of the current lecture (LIVE → VIDEO, notes PDF + unlock, DPP). Nothing is sent to Internal Metrics.'],
+    recolor: ['Colour RECORDED rows', 'Colours every RECORDED row green in all 6 live sheets (only rows that are not green yet).']
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function (b) {
+    b.onclick = function () {
+      var kind = b.getAttribute('data-tool'), info = TOOL_INFO[kind];
+      var name = info[0] + (kind === 'recolor' ? '' : ' (' + (lec.lang === 'HIN' ? 'Hindi' : 'English') + ')');
+      confirmBox2(name + '?', info[1], 'Yes, run').then(function (y) {
+        if (!y) return;
+        lecBusy(true, 'Running…');
+        call('webTool', lec.lang, kind).then(function (r) {
+          var t = (r.messages || []).join('\n\n') || 'Done.';
+          var bad = /⚠️|failed|not found/i.test(t);
+          lecLog(name, t, bad ? 'bad' : 'ok');
+          toast(bad ? name + ': check the log' : name + '');
+        }).catch(function (e) { lecLog(name, e, 'bad'); })
+          .then(function () { lecBusy(false); });
+      });
+    };
+  });
+  // Clear dashboard: clears only this page's form + log (the sheet is not changed)
+  $('lecWipe').onclick = function () {
+    $('fCode').value = '';
+    [0, 1, 2].forEach(function (i) { $('s' + i).value = ''; $('e' + i).value = ''; });
+    $('fPdf').value = ''; showPdfFinal();
+    $('fLink').innerHTML = '<span class="muted">Video links (SSD / 480p / 720p) will appear here</span>';
+    $('codeErr').hidden = true; $('fCode').style.borderColor = '';
+    $('lecLog').innerHTML = '';
+    toast('Dashboard cleared (sheet not changed)');
+    $('fCode').focus();
+  };
+
+  // ---------- PDF: key -> URL, Import / Update live sheet ----------
+  var PDF_BASE = 'https://dm80t6147awlm.cloudfront.net/';
+  function pdfUrlFromKey(k) {
+    k = String(k || '').trim();
+    if (!k) return '';
+    if (/^https?:\/\//i.test(k)) return k;
+    k = k.replace(/^s3:\/\/[^\/]+\//i, '').replace(/^\/+/, '');
+    if (!/\.pdf$/i.test(k)) k += '.pdf';
+    return PDF_BASE + k;
+  }
+  function showPdfFinal() {
+    var u = pdfUrlFromKey($('fPdf').value);
+    $('pdfFinal').innerHTML = u ? '<span class="muted">Final URL:</span> <a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>'
+                                : '<span class="muted">Final URL preview</span>';
+  }
+  $('fPdf').addEventListener('input', showPdfFinal);
+  function secs(v) { var n = Number(String(v || '').replace(/,/g, '')); return String(v || '').trim() === '' || isNaN(n) ? null : Math.round(n); }
+  function setHms(prefix, total) {
+    $(prefix + '0').value = Math.floor(total / 3600);
+    $(prefix + '1').value = Math.floor((total % 3600) / 60);
+    $(prefix + '2').value = total % 60;
+  }
+  // ---------- in-page video player: pick Video Start / End from the video ----------
+  var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js';
+  var vp = { hls: null };
+  function fmtHms(t) { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 3600) + ':' + ('0' + Math.floor(t % 3600 / 60)).slice(-2) + ':' + ('0' + t % 60).slice(-2); }
+  function loadHls() {
+    return new Promise(function (ok, fail) {
+      if (window.Hls) return ok(window.Hls);
+      var sc = document.createElement('script'); sc.src = HLS_SRC;
+      sc.onload = function () { ok(window.Hls); }; sc.onerror = function () { fail('Could not load the video player library.'); };
+      document.head.appendChild(sc);
+    });
+  }
+  function vpShowErr(msg) {
+    $('vpErr').innerHTML = esc(msg) + (lec.playUrl ? '<br><a href="' + esc(lec.playUrl) + '" target="_blank" rel="noopener">Open the video in a new tab instead</a> and type the time by hand.' : '');
+    $('vpErr').hidden = false;
+  }
+  function vpOpen() {
+    var url = lec.playUrl; if (!url) return;
+    var v = $('vpVideo');
+    $('vpErr').hidden = true; $('vpNow').textContent = '0:00:00';
+    if (vp.hls) { try { vp.hls.destroy(); } catch (x) {} vp.hls = null; }
+    $('vpDlg').showModal();
+    setTimeout(function () { try { $('vpVideo').focus(); } catch (x) {} }, 50);
+    // jump to the time already in the form (Video Start), so fine-tuning is quick
+    var startAt = secs($('s0').value) * 3600 + secs($('s1').value) * 60 + secs($('s2').value) || 0;
+    var seekOnce = function () { if (startAt > 0) { try { v.currentTime = startAt; } catch (x) {} } v.removeEventListener('loadedmetadata', seekOnce); };
+    v.addEventListener('loadedmetadata', seekOnce);
+    if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = url; return; }      // Safari / browsers with built-in HLS
+    loadHls().then(function (Hls) {
+      if (!Hls || !Hls.isSupported()) { v.src = url; return; }
+      var h = new Hls(); vp.hls = h;
+      h.on(Hls.Events.ERROR, function (ev, data) {
+        if (data && data.fatal) vpShowErr('The video could not be played here (' + (data.details || 'network error') + ').');
+      });
+      h.loadSource(url); h.attachMedia(v);
+    }).catch(function (e) { vpShowErr(String(e)); });
+  }
+  function vpClose() {
+    var v = $('vpVideo'); try { v.pause(); } catch (x) {}
+    if (vp.hls) { try { vp.hls.destroy(); } catch (x) {} vp.hls = null; }
+    v.removeAttribute('src'); try { v.load(); } catch (x) {}
+    if ($('vpDlg').open) $('vpDlg').close();
+  }
+  function vpSet(which) {
+    var t = Math.floor($('vpVideo').currentTime || 0);
+    setHms(which === 'start' ? 's' : 'e', t);
+    showCodeErr();
+    $('vpInfo').textContent = (which === 'start' ? 'Video Start' : 'Video End') + ' set to ' + fmtHms(t) + '. Click "Click here for links" or a push button to save it. Keys: Space play / pause · → / ← ±10 s · ↑ / ↓ ±1 s · S Start · E End.';
+    toast((which === 'start' ? 'Video Start' : 'Video End') + ' = ' + fmtHms(t));
+  }
+  $('fLink').addEventListener('click', function (e) { if (e.target.closest('#vpOpen')) vpOpen(); });
+  $('vpClose').onclick = vpClose;
+  $('vpDlg').addEventListener('close', vpClose);
+  $('vpSetStart').onclick = function () { vpSet('start'); };
+  $('vpSetEnd').onclick = function () { vpSet('end'); };
+  ['timeupdate', 'seeked', 'loadedmetadata'].forEach(function (ev) { $('vpVideo').addEventListener(ev, function () { $('vpNow').textContent = fmtHms(this.currentTime); }); });
+  $('vpVideo').addEventListener('error', function () { if (!vp.hls) vpShowErr('The video could not be played here.'); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-seek]'), function (b) {
+    b.onclick = function () { var v = $('vpVideo'); v.currentTime = Math.max(0, (v.currentTime || 0) + Number(b.getAttribute('data-seek'))); };
+  });
+  // keyboard: Space = play / pause, ← / → = 10 s back / forward, ↓ / ↑ = 1 s back / forward, S / E = set Start / End
+  document.addEventListener('keydown', function (e) {
+    if (!$('vpDlg').open) return;                       // only while the player is open (works wherever the focus is)
+    if (e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var v = $('vpVideo'), k = e.key;
+    var done = function () { e.preventDefault(); e.stopPropagation(); };
+    var jump = function (d) { v.currentTime = Math.max(0, (v.currentTime || 0) + d); };
+    if (k === ' ' || k === 'Spacebar') { done(); if (v.paused) v.play(); else v.pause(); }
+    else if (k === 'ArrowRight') { done(); jump(10); }
+    else if (k === 'ArrowLeft') { done(); jump(-10); }
+    else if (k === 'ArrowUp') { done(); jump(1); }
+    else if (k === 'ArrowDown') { done(); jump(-1); }
+    else if (k === 's' || k === 'S') { done(); vpSet('start'); }
+    else if (k === 'e' || k === 'E') { done(); vpSet('end'); }
+  }, true);
+
+  function pdfCode() {
+    var code = $('fCode').value.trim().toUpperCase();
+    var err = !code ? 'Enter the lecture code first' : codeLangError(code, lec.lang);
+    if (err) { toast(err); showCodeErr(); return ''; }
+    return code;
+  }
+  $('pdfImport').onclick = function () {
+    var code = pdfCode(); if (!code) return;
+    lecBusy(true, 'Importing from sheet…');
+    call('webPdfImport', lec.lang, code).then(function (r) {
+      var got = [], b = r.backup;
+      if (r.url) { $('fPdf').value = r.url; showPdfFinal(); got.push('PDF'); }
+      if (b) {
+        // Times in the sheet are in milliseconds:
+        //   Video Start (form) -> default_start_time
+        //   Video End   (form) -> video_start_position   (video_end_position = usse 500 ms aage)
+        var ds = secs(b.defaultStart), vs = secs(b.videoStart), ve = secs(b.videoEnd);
+        var st = ds !== null ? Math.round(ds / 1000) : null;
+        var en = vs !== null ? Math.round(vs / 1000) : (ve !== null ? Math.round((ve - 500) / 1000) : null);
+        if (st !== null) { setHms('s', st); got.push('Start'); }
+        if (en !== null) { setHms('e', en); got.push('End'); }
+        if (/^https?:\/\//.test(b.link)) {
+          $('fLink').innerHTML = '<span class="muted">From backup:</span> <a href="' + esc(b.link) + '" target="_blank" rel="noopener">' + esc(b.link) + '</a>';
+          got.push('Video link');
+        }
+      }
+      var t = (got.length ? 'Imported: ' + got.join(', ') : 'Nothing found') + '\n' + r.where +
+        (b ? '\nBackup tab: ' + b.tab + '\n  default_start_time ' + (b.defaultStart || '—') + ' · video_start_position ' + (b.videoStart || '—') + ' · video_end_position ' + (b.videoEnd || '—') + ' (ms)'
+           : '\nBackup tab not found (probably not pushed yet) – only PDF imported.') +
+        (r.url ? '\nPDF: ' + r.url : '');
+      lecLog('Import from sheet', t, got.length ? 'ok' : 'bad');
+      toast(got.length ? 'Imported from sheet (' + got.join(', ') + ')' : 'No data found in sheet for this lecture');
+    }).catch(function (e) { lecLog('Import PDF', e, 'bad'); })
+      .then(function () { lecBusy(false); });
+  };
+  $('pdfUpdate').onclick = function () {
+    var code = pdfCode(); if (!code) return;
+    var url = pdfUrlFromKey($('fPdf').value);
+    if (!url) { toast('Enter a PDF key or URL first'); $('fPdf').focus(); return; }
+    confirmBox2('Update PDF in live sheet', code + '\n\nThis URL will be written to the notes column of the subject live sheet (Chapters tab):\n\n' + url, 'Yes, update')
+      .then(function (yes) {
+        if (!yes) return;
+        lecBusy(true, 'Updating PDF…');
+        call('webPdfUpdate', lec.lang, code, $('fPdf').value).then(function (r) {
+          var t = r.where + '\nColumn: ' + (r.wrote.join(', ') || '—') +
+            (r.skipped.length ? '\nFormula ki wajah se skip: ' + r.skipped.join(', ') : '') + '\n\n';
+          var kind = 'ok';
+          if (!r.wrote.length) { t += 'Warning: nothing was written.'; kind = 'bad'; }
+          else if (!r.sameLecture) { t += 'Note: the Automation sheet currently has a different lecture, so ' + r.automationCell + ' was not checked. Click "Click here for links" first.'; }
+          else if (r.matches) { t += 'OK – ' + r.automationCell + ' picked up the new URL – this will be used for the push.'; }
+          else { t += 'Warning: ' + r.automationCell + ' still shows the old URL:\n' + (r.automationPdf || '(empty)') + '\nCheck before pushing.'; kind = 'bad'; }
+          lecLog('Update PDF', t, kind);
+          toast(kind === 'ok' ? 'PDF updated in live sheet' : 'PDF update – check the log');
+          return lecLoad();
+        }).catch(function (e) { lecLog('Update PDF', e, 'bad'); })
+          .then(function () { lecBusy(false); });
+      });
+  };
+  $('lecClear').onclick = function () {
+    var nm = lec.lang === 'HIN' ? 'Hindi' : 'English';
+    var cells = lec.lang === 'HIN' ? 'C10, D10, G9:I10' : 'C4, D4, G3:I4';
+    confirmBox2('Clear entry (' + nm + ')', 'The ' + nm + ' lecture code, video link and start/end time will be removed from the sheet.\n(' + cells + ')\n\nCells with formulas will not be touched.', 'Yes, clear')
+      .then(function (yes) {
+        if (!yes) return;
+        lecBusy(true, 'Clearing…');
+        call('webLectureClear', lec.lang).then(function (d) {
+          fillLec(d); toast(nm + ' entry cleared');
+        }).catch(function (e) { lecLog('Clear', e, 'bad'); })
+          .then(function () { lecBusy(false); $('fCode').focus(); });
+      });
+  };
+  $('lecSave').onclick = function () { lecSave(false).catch(function () {}); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-push]'), function (b) {
+    b.onclick = function () { lecPush(b.getAttribute('data-push')); };
+  });
+  $('fCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('lecSave').click(); });
+  $('fCode').addEventListener('input', showCodeErr);
+
+  // ======================= VIEW SWITCH =======================
+  var npLoaded = false;
+  // ======================= FEATURE ACCESS (set in the admin panel) =======================
+  var FEAT = null;                      // null = not known yet (show everything)
+  function can(f) { return !FEAT || FEAT.indexOf(f) >= 0; }
+  function viewOk(v) {
+    if (v === 'today') return can('today');
+    if (v === 'lec') return can('lecture');
+    if (v === 'np') return can('nodepath') || can('upload');
+    if (v === 'dpp') return can('dpp');
+    if (v === 'files') return can('sheets');
+    if (v === 'thumb') return can('thumbnail');
+    return true;
+  }
+  function applyFeatures(list) {
+    FEAT = Array.isArray(list) ? list : null;      // older server that does not send features = show everything
+    var navBtn = function (v) { return document.querySelector('#nav [data-v="' + v + '"]'); };
+    ['today', 'lec', 'np', 'dpp', 'thumb', 'files'].forEach(function (v) { navBtn(v).hidden = !viewOk(v); });
+    var pushMap = { dashboard: 'push_dash', nodes: 'push_nodes', dpp: 'push_dpp' }, anyPush = false;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-push]'), function (b) {
+      var k = b.getAttribute('data-push');
+      var ok = k === 'both' ? (can('push_dash') && can('push_nodes')) : can(pushMap[k]); b.hidden = !ok; if (ok) anyPush = true;
+    });
+    $('pushSep').hidden = !(can('push_dash') && can('push_nodes'));
+    $('dppSep').hidden = !can('push_dpp') || !(can('push_dash') || can('push_nodes'));
+    $('pushTitle').hidden = !anyPush;
+    $('pushTitle').nextElementSibling.hidden = !can('push_dash');
+    $('pdfUpdate').hidden = !can('pdf_update');
+    if (!can('push_dash')) $('pdfHint').textContent = can('pdf_update') ? 'Enter the AWS key or full URL, then use Update on main sheet.' : 'Enter the AWS key or full URL.';
+    $('pdfSec').hidden = !can('pdf_update') && !can('push_dash');     // the PDF box is only used by these two features
+    if (!can('pdf_update')) $('pdfImport').style.gridColumn = '1 / -1';
+    $('upCard').hidden = !can('upload');
+    $('ccBtn').hidden = !can('clear_cache');
+    $('npMain').hidden = !can('nodepath');
+    var lg = [ic('check') + ' done · ' + ic('clock') + ' pending. <b>Class</b> = RECORDED in live sheet'];
+    var pk = [can('push_dash') && 'Dashboard', can('push_nodes') && 'Nodes', can('push_dpp') && 'DPP'].filter(Boolean);
+    if (pk.length) lg.push('<b>' + pk.join(' / ') + '</b> = successful push found in activity logs');
+    if (can('pdf_update')) lg.push('<b>PDF</b> = notes URL in live sheet');
+    $('tdLegend').innerHTML = lg.join(' · ') + '. Use the arrows to check another day.' + (canOpen() ? ' Tap a lecture to open it in Lecture Push.' : '');
+  }
+
+  // ======================= VIDEO IMAGE (thumbnail maker) =======================
+  var th = { info: null, img: null, box: null, busy: false };
+  function thLoadFonts() {
+    try { return Promise.all([document.fonts.load('700 40px Poppins'), document.fonts.load('800 40px Poppins')]); } catch (x) { return Promise.resolve(); }
+  }
+  function thBusy(on, label) {
+    th.busy = on;
+    ['thLoad', 'thDl', 'thSave'].forEach(function (id) { $(id).disabled = on; });
+    $('thStatus').innerHTML = on ? '<span class="spin"></span> ' + esc(label || 'Working…') : '';
+  }
+  function thLoad() {
+    var code = $('thCode').value.trim().toUpperCase();
+    if (!code) { toast('Enter a lecture code'); return; }
+    thBusy(true, 'Reading the live sheet…');
+    call('webThumbInfo', code).then(function (d) {
+      th.info = d;
+      $('thTitle').value = (d.title || '').toUpperCase();
+      $('thTeacher').value = (d.teacher || '').toUpperCase();
+      $('thBase').innerHTML = d.bases.map(function (b) {
+        return '<option value="' + esc(b.url) + '"' + (b.url === d.defaultBase ? ' selected' : '') + '>' + esc(b.teacher) + ' (from ' + esc(b.from) + ')</option>';
+      }).join('') + '<option value="">Custom link…</option>';
+      $('thBaseUrl').hidden = !!d.bases.length;
+      $('thCur').innerHTML = /^https?:\/\//.test(d.current) ? 'Current image in sheet: <a href="' + esc(d.current) + '" target="_blank" rel="noopener">open</a>' : 'No image in the sheet yet for this lecture.';
+      $('thMeta').textContent = d.subject + ' · row ' + d.row + ' · column "' + d.column + '"';
+      $('thLink').value = '';
+      return thLoadBase();
+    }).catch(function (e) { thBusy(false); $('thStatus').innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+  function thBaseUrl() { return $('thBase').value || $('thBaseUrl').value.trim(); }
+  function thLoadBase() {
+    var url = thBaseUrl();
+    if (!url) { thBusy(false); $('thStatus').textContent = 'Choose a base image (a thumbnail of the same teacher) or paste its link.'; return; }
+    thBusy(true, 'Loading the base image…');
+    return Promise.all([call('webThumbFetch', url), thLoadFonts()]).then(function (r) {
+      return new Promise(function (ok, fail) {
+        var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { fail('Could not read the base image.'); }; im.src = r[0];
+      });
+    }).then(function (im) { th.img = im; th.box = null; thBusy(false); thDraw(); })
+      .catch(function (e) { thBusy(false); $('thStatus').innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+  // find the white title box in the base image (falls back to the standard layout)
+  function thDetect(ctx, W, H) {
+    var d = ctx.getImageData(0, 0, W, H).data;
+    var px = function (x, y) { var i = (y * W + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+    var lum = function (p) { return 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]; };
+    var white = function (x, y) { var p = px(x, y); return p[0] > 236 && p[1] > 236 && p[2] > 236; };
+    var dark = function (x, y) { return lum(px(x, y)) < 150; };
+    var box = null, xs = Math.round(0.75 * W);
+    // top: below the logo, go down to the box border, then into the white inside
+    var y = Math.round(0.27 * H), lim = Math.round(0.6 * H);
+    while (y < lim && !dark(xs, y)) y++;
+    while (y < lim && !white(xs, y)) y++;
+    if (y < lim) {
+      var yi = y + Math.max(2, Math.round(0.008 * H)), l = xs, r = xs;
+      while (l > 0 && white(l - 1, yi)) l--; while (r < W - 1 && white(r + 1, yi)) r++;
+      var xc = r - Math.max(2, Math.round(0.01 * W)), t = y, b = yi;
+      while (b < H - 1 && white(xc, b + 1)) b++;
+      if (r - l > 0.25 * W && b - t > 0.15 * H) box = { l: l, r: r, t: t, b: b };
+    }
+    if (!box) box = { l: Math.round(0.414 * W), r: Math.round(0.938 * W), t: Math.round(0.331 * H), b: Math.round(0.722 * H) };
+    var bw0 = box.r - box.l;
+    var nb = px(Math.max(0, box.l - 2), Math.round((box.t + box.b) / 2));
+    var border = lum(nb) < 170 ? nb : [13, 42, 115];
+    // title colour = average of the dark pixels of the old title (away from the teacher's hand on the left)
+    var sum = [0, 0, 0], n = 0;
+    for (var yy = box.t + 2; yy < box.b - 2; yy += 2) for (var x = box.l + Math.round(0.1 * bw0); x < box.r - 2; x += 2) {
+      var p = px(x, yy); if (lum(p) < 110) { sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2]; n++; }
+    }
+    var title = n > 20 ? sum.map(function (v) { return Math.round(v / n); }) : border;
+    // teacher pill: rows below the box border with the longest dark run (white letter gaps allowed)
+    var gapMax = Math.round(0.035 * W), y1 = box.b + Math.max(4, Math.round(0.014 * H)), y2 = Math.min(H - 1, box.b + Math.round(0.13 * H));
+    var best = null, rows = [];
+    for (var ry = y1; ry <= y2; ry++) {
+      var runL = -1, runR = -1, gap = 0, bestRun = null;
+      for (var rx = box.l; rx < W; rx++) {
+        if (dark(rx, ry)) { if (runL < 0) runL = rx; runR = rx; gap = 0; }
+        else if (runL >= 0) { gap++; if (gap > gapMax || !white(rx, ry) && lum(px(rx, ry)) > 200 && gap > 3) {
+          if (!bestRun || runR - runL > bestRun.r - bestRun.l) bestRun = { l: runL, r: runR }; runL = -1; gap = 0; } }
+      }
+      if (runL >= 0 && (!bestRun || runR - runL > bestRun.r - bestRun.l)) bestRun = { l: runL, r: runR };
+      if (bestRun && bestRun.r - bestRun.l > 0.15 * W) { rows.push(ry); if (!best || bestRun.r - bestRun.l > best.r - best.l) best = bestRun; }
+    }
+    if (best && rows.length) {
+      var pb = rows[rows.length - 1], ph = Math.round(0.078 * H);
+      box.pill = { cx: (best.l + best.r) / 2, cy: pb - ph / 2 + 1, w: best.r - best.l, h: ph };
+      var pp = [0, 0, 0], pn = 0;
+      for (var qx = best.l + 2; qx < best.l + Math.round(0.03 * W); qx++) { var q = px(qx, Math.round(box.pill.cy)); if (lum(q) < 170) { pp[0] += q[0]; pp[1] += q[1]; pp[2] += q[2]; pn++; } }
+      box.pillRgb = pn ? pp.map(function (v) { return Math.round(v / pn); }) : border;
+    } else {
+      box.pill = { cx: box.l + bw0 / 2 + 0.008 * bw0, cy: box.b + 0.038 * H, w: 0.32 * W, h: Math.round(0.078 * H) };
+      box.pillRgb = border;
+    }
+    box.border = border; box.titleRgb = title;
+    box.navy = 'rgb(' + title.join(',') + ')'; box.pillColor = 'rgb(' + box.pillRgb.join(',') + ')';
+    return box;
+  }
+  function thFit(ctx, text, maxW, maxH, weight) {
+    var size = Math.floor(maxH * 0.42), words = text.split(/\s+/), lines = [text];
+    var font = function (s) { return weight + ' ' + s + 'px Poppins, "Inter", sans-serif'; };
+    var fits = function (ls, s) { ctx.font = font(s); return ls.every(function (x) { return ctx.measureText(x).width <= maxW; }) && ls.length * s * 1.12 <= maxH; };
+    var minOne = Math.floor(maxH * 0.24);
+    while (size > minOne && !fits(lines, size)) size--;
+    if (!fits(lines, size) && words.length > 1) {                  // two lines, best split
+      var best = null;
+      for (var i = 1; i < words.length; i++) {
+        var ls = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+        var s2 = Math.floor(maxH * 0.40); while (s2 > 8 && !fits(ls, s2)) s2--;
+        if (!best || s2 > best.size) best = { lines: ls, size: s2 };
+      }
+      lines = best.lines; size = best.size;
+    } else { while (size > 8 && !fits(lines, size)) size--; }
+    return { lines: lines, size: size, font: font(size) };
+  }
+  function thRound(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  function thDraw() {
+    var cv = $('thCanvas'); if (!th.img) return;
+    var W = th.img.naturalWidth, H = th.img.naturalHeight;
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(th.img, 0, 0);
+    if (!th.box) th.box = thDetect(ctx, W, H);
+    var B = th.box, bw = B.r - B.l, bh = B.b - B.t;
+    // 1) clear the old title: inside the box every pixel that is a mix of white and the title colour becomes white;
+    //    anything else (e.g. the teacher's hand over the box edge) is kept
+    var cx0 = B.l + Math.round(0.065 * bw);
+    var id = ctx.getImageData(B.l + 1, B.t + 1, bw - 1, bh - 1), dd = id.data, tc = B.titleRgb, dv = [tc[0] - 255, tc[1] - 255, tc[2] - 255];
+    var dl = dv[0] * dv[0] + dv[1] * dv[1] + dv[2] * dv[2] || 1;
+    for (var i = 0; i < dd.length; i += 4) {
+      var rx = dd[i] - 255, ry = dd[i + 1] - 255, rz = dd[i + 2] - 255;
+      var tt = (rx * dv[0] + ry * dv[1] + rz * dv[2]) / dl;              // position on the white → title-colour line
+      if (tt < -0.05 || tt > 1.25) continue;
+      var ex = rx - tt * dv[0], ey = ry - tt * dv[1], ez = rz - tt * dv[2];
+      if (ex * ex + ey * ey + ez * ez < 2600) { dd[i] = dd[i + 1] = dd[i + 2] = 255; }
+    }
+    ctx.putImageData(id, B.l + 1, B.t + 1);
+    // 2) new title
+    var title = $('thTitle').value.trim().toUpperCase() || 'CHAPTER NAME';
+    var scale = Number($('thSize').value) / 100;
+    var tf = thFit(ctx, title, (B.r - cx0) * 0.92, bh * 0.78 * scale, '700');
+    ctx.font = tf.font; ctx.fillStyle = B.navy; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var cx = B.l + bw / 2 + 0.015 * bw, cy = B.t + bh * 0.47, lh = tf.size * 1.12;
+    tf.lines.forEach(function (ln, i) { ctx.fillText(ln, cx, cy + (i - (tf.lines.length - 1) / 2) * lh); });
+    // 3) teacher pill (drawn over the old one)
+    var teacher = $('thTeacher').value.trim().toUpperCase();
+    if (teacher) {
+      var P = B.pill, ph = P.h, ps = Math.round(ph * 0.54);
+      ctx.font = '700 ' + ps + 'px Poppins, "Inter", sans-serif';
+      var pw = Math.max(ctx.measureText(teacher).width + ph * 1.3, P.w + 4), pcx = P.cx, pcy = P.cy;     // covers the old pill
+      var ow = Math.max(2, Math.round(H * 0.008));
+      ctx.fillStyle = '#ffffff'; thRound(ctx, pcx - pw / 2 - ow, pcy - ph / 2 - ow, pw + 2 * ow, ph + 2 * ow, (ph + 2 * ow) / 2); ctx.fill();
+      ctx.fillStyle = B.pillColor; thRound(ctx, pcx - pw / 2, pcy - ph / 2, pw, ph, ph / 2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText(teacher, pcx, pcy + 1);
+    }
+    $('thPreviewNote').textContent = W + ' × ' + H + ' px';
+  }
+  function thFileName() { return ((th.info && th.info.code) || 'lecture') + '_video_image.png'; }
+  $('thLoad').onclick = thLoad;
+  $('thCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') thLoad(); });
+  $('thBase').onchange = function () { $('thBaseUrl').hidden = !!this.value; if (this.value) thLoadBase(); };
+  $('thBaseUrl').addEventListener('change', function () { if (!$('thBase').value) thLoadBase(); });
+  ['thTitle', 'thTeacher', 'thSize'].forEach(function (id) { $(id).addEventListener('input', thDraw); });
+  $('thDl').onclick = function () {
+    if (!th.img) { toast('Load a lecture first'); return; }
+    $('thCanvas').toBlob(function (blob) {
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = thFileName();
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      toast('Downloaded ' + thFileName());
+    }, 'image/png');
+  };
+  $('thSave').onclick = function () {
+    var url = $('thLink').value.trim();
+    if (!th.info) { toast('Load a lecture first'); return; }
+    if (!/^https?:\/\//.test(url)) { toast('Paste the uploaded image link (https://…)'); return; }
+    confirmBox2('Save video image link?', th.info.code + '\n\nThe "' + th.info.column + '" column (' + th.info.subject + ', row ' + th.info.row + ') will be set to:\n' + url +
+      (th.info.current ? '\n\nCurrent value:\n' + th.info.current : ''), 'Yes, save').then(function (y) {
+      if (!y) return;
+      thBusy(true, 'Saving link…');
+      call('webThumbSaveLink', th.info.code, url).then(function (d) {
+        th.info = d; thBusy(false); toast('Video image link saved to the live sheet');
+        $('thCur').innerHTML = 'Current image in sheet: <a href="' + esc(d.current) + '" target="_blank" rel="noopener">open</a>';
+      }).catch(function (e) { thBusy(false); toast(String(e)); });
+    });
+  };
+
+  // ======================= SHEETS (open / view / edit working files) =======================
+  var files = { loaded: false, list: [] };
+  function filesLoad() {
+    call('webFiles').then(function (list) {
+      files.list = list;
+      var groups = [];
+      list.forEach(function (f) { if (groups.indexOf(f.groupLabel) < 0) groups.push(f.groupLabel); });
+      $('filesList').innerHTML = list.length ? groups.map(function (g) {
+        return '<div class="fgroup"><div class="sect" style="margin-bottom:8px">' + esc(g) + '</div><div class="fgrid">' +
+          list.map(function (f, i) {
+            return f.groupLabel !== g ? '' : '<div class="fitem"><div class="icon">' + ic('file') + '</div><div class="nm">' + esc(f.name) + '</div>' +
+              '<button class="btn sm" data-fview="' + i + '">View here</button><a class="btn sm primary" href="' + esc(f.url) + '" target="_blank" rel="noopener">Open</a></div>';
+          }).join('') + '</div></div>';
+      }).join('') : '<div class="muted">No sheets for your features.</div>';
+    }).catch(function (e) { files.loaded = false; $('filesList').innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+  $('filesList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fview]'); if (!b) return;
+    var f = files.list[Number(b.getAttribute('data-fview'))]; if (!f) return;
+    sheetView(f.name, f.url);
+  });
+  function sheetView(name, url) {              // open a Google Sheet inside the dashboard
+    $('shTitle').textContent = name; $('shNew').href = url;
+    $('shFrame').src = url;
+    $('shDlg').showModal();
+  }
+  $('shClose').onclick = function () { $('shDlg').close(); };
+  $('shDlg').addEventListener('close', function () { $('shFrame').src = 'about:blank'; });
+
+  // ======================= CLEAR INTERNAL METRICS CACHE =======================
+  $('ccBtn').onclick = function () {
+    var b = this;
+    confirmBox2('Clear Internal Metrics cache?' + envTag(), 'This clears the cache of the ' + (ENV.env === 'STAGE' ? 'STAGE (test)' : 'PRODUCTION') + ' Internal Metrics server (same as "Clear Cache" in the Internal Metrics menu), so the app shows the latest data.\n\nUse it after pushes when changes do not show up yet.', 'Yes, clear cache').then(function (y) {
+      if (!y) return;
+      b.disabled = true; b.innerHTML = '<span class="spin"></span> Clearing…';
+      call('webClearCache').then(function (r) {
+        toast(r.ok ? 'Internal Metrics cache cleared' : 'Cache clear failed (HTTP ' + r.code + ')');
+        if (!r.ok) confirmBox('Cache clear failed', 'HTTP ' + r.code + (r.body ? '\n' + r.body : ''), null);
+      }).catch(function (e) {
+        if (isTokenErr(e)) openToken('Your token has expired or is invalid (401). Paste a new token to continue.');
+        else confirmBox('Cache clear', String(e).replace(/^Error:\s*/, ''), null);
+      }).then(function () { b.disabled = false; b.innerHTML = ic('refresh') + 'Clear Cache'; });
+    });
+  };
+
+  // ======================= TODAY =======================
+  var td = { loaded: false, data: null, filter: 'pending', busy: false };
+  try { var _tf = localStorage.getItem('td_filter'); if (_tf === 'all' || _tf === 'pending') td.filter = _tf; } catch (x) {}
+  Array.prototype.forEach.call($('tdFilter').children, function (x) { x.classList.toggle('on', x.getAttribute('data-f') === td.filter); });
+  function tdShift(days) {
+    var s = $('tdDate').value; if (!s) return '';
+    var p = s.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + days));
+    return d.toISOString().slice(0, 10);
+  }
+  var TD_KEYS = ['PHYENG', 'PHYHIN', 'CHEENG', 'CHEHIN', 'BIOENG', 'BIOHIN'];
+  // SPEED: 6 live sheets + logs in parallel (7 calls), merged when all have arrived
+  function tdLoad(dateStr, force) {
+    if (td.busy) return;
+    td.busy = true;
+    var date = dateStr === undefined ? ($('tdDate').value || '') : dateStr;
+    var done = 0;
+    $('tdList').innerHTML = '<div class="center"><span class="spin"></span> Reading live sheets… <span id="tdProg">0/6</span></div>';
+    var files = TD_KEYS.map(function (k) {
+      return call('webTodayFile', k, date, !!force).then(function (r) {
+        done++; var pg = document.getElementById('tdProg'); if (pg) pg.textContent = done + '/6';
+        return r;
+      }).catch(function (e) { return { key: k, items: [], error: String(e) }; });
+    });
+    var logs = call('webTodayLogs', !!force).catch(function () { return {}; });
+    Promise.all([Promise.all(files), logs]).then(function (res) {
+      td.busy = false;
+      var parts = res[0], L = res[1] || {};
+      var first = parts.filter(function (p) { return p.date; })[0];
+      if (!first) throw new Error(parts.map(function (p) { return p.error; }).filter(Boolean).join('\n') || 'Could not read the live sheets');
+      var items = [], errors = [];
+      parts.forEach(function (p) { if (p.error) errors.push(p.error); items = items.concat(p.items || []); });
+      items.forEach(function (x) {
+        var l = L[x.code] || {};
+        x.over = x.recorded || x.date < first.today || (x.date === first.today && x.endMin >= 0 && first.nowMin >= x.endMin);
+        x.dash = !!(l.dash && l.dash.ok) || (x.recorded && x.backup);
+        x.nodes = !!(l.nodes && l.nodes.ok);
+        x.dpp = !!(l.dpp && l.dpp.ok);
+        x.log = { dash: l.dash || null, nodes: l.nodes || null, dpp: l.dpp || null };
+      });
+      items.sort(function (a, b) { return (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || (a.startMin - b.startMin) || (a.code < b.code ? -1 : 1); });
+      td.data = { date: first.date, today: first.today, now: first.now, backlogDays: first.backlogDays, items: items, errors: errors };
+      $('tdDate').value = first.date;
+      tdRender();
+    }).catch(function (e) {
+      td.busy = false;
+      $('tdList').innerHTML = '<div class="err">' + esc(e && e.message ? e.message : e) + '</div>';
+    });
+  }
+  function tdBadge(ok, label, title, notYet) {
+    var cls = ok ? 'ok' : (notYet ? '' : 'wait');
+    return '<span class="pill ' + cls + '" title="' + esc(title || '') + '">' + ic(ok ? 'check' : 'clock') + esc(label) + '</span>';
+  }
+  function tdLogTitle(l) { return l ? (l.ok ? 'Pushed ' : 'Last try FAILED ') + l.at + ' by ' + l.by : 'No push found in logs'; }
+  function tdDayName(k, today) {
+    if (k === today) return 'Today';
+    var p = k.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    var t = today.split('-').map(Number), dt = new Date(Date.UTC(t[0], t[1] - 1, t[2]));
+    var diff = Math.round((d - dt) / 86400000);
+    var nm = diff === -1 ? 'Yesterday' : diff === 1 ? 'Tomorrow' : '';
+    var lbl = d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' });
+    return nm ? nm + ' · ' + lbl : lbl;
+  }
+  function tdDone(x) {                       // only the user's allowed features are counted
+    return x.recorded && (!can('push_dash') || x.dash) && (!can('push_nodes') || x.nodes) &&
+      (!can('pdf_update') || !!x.pdf) && (!can('push_dpp') || x.dpp);
+  }
+  function tdRender() {
+    var r = td.data; if (!r) return;
+    r.items.forEach(function (x) { x.done = tdDone(x); });
+    $('tdNow').textContent = 'Updated ' + r.now + (r.date !== r.today ? ' · showing ' + tdDayName(r.date, r.today) : '');
+    var all = r.items;
+    var day = all.filter(function (x) { return !x.backlog; });
+    var cnt = function (arr, f) { return arr.filter(f).length; };
+    var over = day.filter(function (x) { return x.over; });
+    var nDone = cnt(day, function (x) { return x.done; }), nRec = cnt(day, function (x) { return x.recorded; });
+    var nUp = cnt(day, function (x) { return !x.over; });
+    var notPushed = can('push_dash') ? cnt(over, function (x) { return x.recorded && !x.dash; }) : 0;
+    var notRec = cnt(over, function (x) { return !x.recorded; });
+    var failed = cnt(day, function (x) { return (can('push_dash') && x.log.dash && !x.log.dash.ok) || (can('push_nodes') && x.log.nodes && !x.log.nodes.ok) || (can('push_dpp') && x.log.dpp && !x.log.dpp.ok); });
+    var attn = notPushed + failed + notRec;
+    var pend = can('push_dpp') ? { l: 'DPP pending', n: cnt(over, function (x) { return !x.dpp; }) } :
+               can('pdf_update') ? { l: 'PDF pending', n: cnt(over, function (x) { return !x.pdf; }) } :
+               { l: 'Not recorded', n: notRec };
+    var pct = function (a, b) { return b ? Math.round(100 * a / b) : 0; };
+    var kpi = function (color, label, val, sub, bar) {
+      return '<div class="kpi" style="--k:' + color + '"><div class="l">' + label + '</div><div class="v">' + val + '</div><div class="s">' + sub + '</div>' +
+        '<div class="bar"><i style="width:' + bar + '%"></i></div></div>';
+    };
+    $('tdSum').innerHTML =
+      kpi('#3b5bfd', 'Classes', day.length, nRec + ' recorded · ' + nUp + ' upcoming', pct(day.length - nUp, day.length)) +
+      kpi('#0f9d58', 'Fully done', nDone + ' / ' + day.length, 'All your steps finished', pct(nDone, day.length)) +
+      kpi('#c27803', pend.l, pend.n, over.length ? 'of ' + over.length + ' finished class' + (over.length === 1 ? '' : 'es') : 'No class over yet', pct(pend.n, over.length)) +
+      kpi('#d93025', 'Needs attention', attn, attn ? [notRec && notRec + ' not recorded', notPushed && notPushed + ' not pushed', failed && failed + ' failed'].filter(Boolean).join(' · ') : 'All good', pct(attn, day.length));
+
+    var show = function (x) { return td.filter === 'all' || !x.done; };
+    var html = '';
+    if (r.errors && r.errors.length) html += '<div class="err">' + r.errors.map(esc).join('<br>') + '</div>';
+    var dayShow = day.filter(show);
+    html += '<div class="tdgroup">' + ic('calendar') + esc(tdDayName(r.date, r.today)) + '</div>';
+    if (dayShow.length) html += dayShow.map(tdItem).join('');
+    else html += '<div class="muted" style="padding:6px 2px">' + (day.length ? 'Everything for this day is done.' : 'No classes found with this live_date.') + '</div>';
+    $('tdList').innerHTML = html;
+  }
+  // "Open" (Today -> Lecture Push) only for users who can push both the lecture and the nodes
+  function canOpen() { return can('lecture') && can('push_dash') && can('push_nodes'); }
+  function hm(t) { return String(t || '').replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1'); }
+  function tdItem(x) {
+    var i = td.data.items.indexOf(x);
+    var notYet = !x.over;                       // class has not happened yet -> grey, no warning
+    var sc = /PHY/.test(x.code || '') ? 'phy' : /CHE/.test(x.code || '') ? 'che' : /BIO/.test(x.code || '') ? 'bio' : '';
+    var cls = 'tditem' + (canOpen() ? '' : ' noopen') + (x.done ? ' done' : '') + (x.backlog || (x.recorded && !x.dash) ? ' late' : '');
+    var classLbl = x.recorded ? 'Class recorded' : (x.over ? 'Class over, not RECORDED' : 'Upcoming');
+    return '<button class="' + cls + '" data-i="' + i + '">' +
+      '<div class="tdtime">' + esc(hm(x.start) || '–') + (x.end ? '<small>' + esc(hm(x.end)) + '</small>' : '') + '</div>' +
+      '<div><div class="t1"><span class="subj ' + sc + '">' + esc(x.subject) + '</span>' + esc(x.title || '(no title)') + (x.done ? ic('check') : '') + '</div>' +
+      '<div class="t2">' + (x.teacher ? esc(x.teacher) + ' · ' : '') + '<span class="code">' + esc(x.lectureCode) + '</span>' + (x.backlog ? ' · ' + esc(x.dateText || x.date) : '') + '</div></div>' +
+      (canOpen() ? '<div class="go">Open' + ic('right') + '</div>' : '') +
+      '<div class="tdbadges">' +
+        tdBadge(x.recorded, classLbl, x.status ? 'chapter_status: ' + x.status : '', notYet) +
+        (can('push_dash') ? tdBadge(x.dash, 'Dashboard', tdLogTitle(x.log.dash) + (x.backup ? ' · backup tab has data' : ''), notYet) : '') +
+        (can('push_nodes') ? tdBadge(x.nodes, 'Nodes', tdLogTitle(x.log.nodes), notYet) : '') +
+        (can('pdf_update') ? tdBadge(!!x.pdf, 'PDF', x.pdf || 'No notes URL in live sheet', notYet) : '') +
+        (can('push_dpp') ? tdBadge(x.dpp, 'DPP', tdLogTitle(x.log.dpp), notYet) : '') +
+        (can('push_dash') && x.recorded && !x.dash ? '<span class="pill bad">' + ic('alert') + 'RECORDED but push not found</span>' : '') +
+        (can('push_dash') && x.log.dash && !x.log.dash.ok ? '<span class="pill bad">Dashboard push failed</span>' : '') +
+        (can('push_nodes') && x.log.nodes && !x.log.nodes.ok ? '<span class="pill bad">Nodes push failed</span>' : '') +
+        (can('push_dpp') && x.log.dpp && !x.log.dpp.ok ? '<span class="pill bad">DPP push failed</span>' : '') +
+      '</div></button>';
+  }
+  $('tdList').addEventListener('click', function (e) {
+    var b = e.target.closest('.tditem'); if (!b || !td.data || !canOpen()) return;
+    tdOpen(td.data.items[Number(b.getAttribute('data-i'))]);
+  });
+  function tdOpen(x) {
+    if (!x || lec.busy) return;
+    if (!canOpen()) { toast('You do not have access to open lectures from here'); return; }
+    var cur = $('fCode').value.trim().toUpperCase();
+    var go = function () {
+      lec.lang = x.lang;
+      try { localStorage.setItem('np_lang', lec.lang); } catch (z) {}
+      Array.prototype.forEach.call($('lang').children, function (z) { z.classList.toggle('on', z.getAttribute('data-l') === x.lang); });
+      showView('lec');
+      lecBusy(true, 'Opening ' + x.code + '…');
+      call('webLectureLoad', x.lang).then(function (d) {
+        lecBusy(false);
+        var same = String(d.code || '').toUpperCase().replace(/ML\d+$/, '') === x.code;
+        if (same) { fillLec(d); }
+        else {
+          fillLec(d);
+          $('fCode').value = x.code;              // form takes the code without ML1 (the sheet adds it)
+          [0, 1, 2].forEach(function (k) { $('s' + k).value = ''; $('e' + k).value = ''; });
+          $('fLink').innerHTML = '<span class="muted">Click "Click here for links" to fetch the video link</span>';
+          showCodeErr();
+        }
+        $('fPdf').value = x.pdf || (same ? $('fPdf').value : '');
+        showPdfFinal();
+        var todo = [];
+        if (can('push_dash') && !x.dash) todo.push('Update on Sheet and Internal Metrics');
+        if (can('push_nodes') && !x.nodes) todo.push('Nodes');
+        if (can('pdf_update') && !x.pdf) todo.push('PDF (Update on main sheet)');
+        if (can('push_dpp') && !x.dpp) todo.push('DPP');
+        lecLog('Opened from Today', x.code + ' · ' + x.subject + (x.title ? ' · ' + x.title : '') +
+          (todo.length ? '\nPending: ' + todo.join(', ') : '\nEverything is done.') +
+          (same ? '' : '\nSet Video Start / End, then click "Click here for links".'), todo.length ? '' : 'ok');
+        if (!same) $('s0').focus();
+      }).catch(function (e) { lecBusy(false); lecLog('Open', e, 'bad'); });
+    };
+    if (cur && cur.replace(/ML\d+$/, '') !== x.code) {
+      confirmBox('Open in Lecture Push?', 'The Lecture Push form currently has ' + cur + '.\n\nIt will be replaced on this page with ' + x.code + ' (' + x.subject + '). Nothing is written to the sheet until you click "Click here for links" or a push button.', 'Yes, open').then(function (y) { if (y) go(); });
+    } else go();
+  }
+  $('tdReload').onclick = function () { tdLoad(undefined, true); };
+  $('tdToday').onclick = function () { $('tdDate').value = ''; tdLoad(''); };
+  $('tdPrev').onclick = function () { var d = tdShift(-1); if (d) tdLoad(d); };
+  $('tdNext').onclick = function () { var d = tdShift(1); if (d) tdLoad(d); };
+  $('tdDate').addEventListener('change', function () { if (this.value) tdLoad(this.value); });
+  $('tdFilter').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    td.filter = b.getAttribute('data-f');
+    try { localStorage.setItem('td_filter', td.filter); } catch (x) {}
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    tdRender();
+  });
+
+  // ======================= DPP UPLOAD =======================
+  // cache: data of each subject+language stays in memory, so switching tabs is instant (Reload = fresh copy)
+  var dpp = { subj: 'PHY', lang: 'HIN', data: null, sel: {}, filter: 'all', q: '', busy: false, loaded: false,
+              cache: {}, selBy: {}, pending: {} };
+  var DPP_KEYS = ['PHYHIN', 'PHYENG', 'CHEHIN', 'CHEENG', 'BIOHIN', 'BIOENG'];
+  try {
+    var _ds = localStorage.getItem('dpp_subj'), _dl = localStorage.getItem('dpp_lang');
+    if (/^(PHY|CHE|BIO)$/.test(_ds || '')) dpp.subj = _ds;
+    if (_dl === 'HIN' || _dl === 'ENG') dpp.lang = _dl;
+  } catch (x) {}
+  function dppKey() { return dpp.subj + dpp.lang; }
+  function dppSyncTabs() {
+    Array.prototype.forEach.call($('dppSubj').children, function (x) { x.classList.toggle('on', x.getAttribute('data-s') === dpp.subj); });
+    Array.prototype.forEach.call($('dppLang').children, function (x) { x.classList.toggle('on', x.getAttribute('data-l') === dpp.lang); });
+  }
+  function dppBusy(on, label) {
+    dpp.busy = on;
+    ['dppReload', 'dppSave', 'dppGo'].forEach(function (id) { $(id).disabled = on; });
+    $('dppGo').innerHTML = on && label ? '<span class="spin"></span> ' + esc(label) : ic('upload') + 'Upload selected DPP';
+  }
+  function dppChanges() {
+    if (!dpp.data) return [];
+    return dpp.data.rows.filter(function (r) { return !!dpp.sel[r.row] !== r.update; })
+      .map(function (r) { return { row: r.row, yes: !!dpp.sel[r.row], id: r.id, name: r.name }; });
+  }
+  function dppStamp(d) { d._at = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); return d; }
+  function dppFetch(key) {                     // one request per file at a time
+    if (dpp.pending[key]) return dpp.pending[key];
+    var pr = call('webDppList', key).then(function (d) {
+      delete dpp.pending[key]; dpp.cache[key] = dppStamp(d); return d;
+    }, function (e) { delete dpp.pending[key]; throw e; });
+    dpp.pending[key] = pr;
+    return pr;
+  }
+  function dppPrefetch() {                     // quietly load the other subjects / languages in the background
+    DPP_KEYS.forEach(function (k) { if (!dpp.cache[k] && !dpp.pending[k]) dppFetch(k).catch(function () {}); });
+  }
+  function dppShow(key) {
+    var d = dpp.cache[key];
+    dpp.data = d;
+    if (!dpp.selBy[key]) { var s0 = {}; d.rows.forEach(function (r) { if (r.update) s0[r.row] = true; }); dpp.selBy[key] = s0; }
+    dpp.sel = dpp.selBy[key];
+    $('dppMeta').innerHTML = esc(d.fileName) + ' · tab "' + esc(d.infoTab) + '" · ' + d.rows.length + ' DPPs · loaded ' + esc(d._at || '') +
+      ' · <a href="' + esc(d.fileUrl) + '" id="dppOpenSheet">open sheet</a>';
+    dppRender();
+  }
+  function dppLoad(force) {
+    if (dpp.busy) return;
+    var key = dppKey();
+    $('dppResult').innerHTML = '';
+    if (force) { delete dpp.cache[key]; delete dpp.selBy[key]; }
+    if (dpp.cache[key]) { dppShow(key); return; }
+    dpp.data = null; dpp.sel = {};
+    $('dppMeta').textContent = '';
+    $('dppList').innerHTML = '<div class="center"><span class="spin"></span> Reading the DPP file…</div>';
+    dppFoot();
+    dppFetch(key).then(function () {
+      if (dppKey() === key) dppShow(key);
+      dppPrefetch();
+    }).catch(function (e) {
+      if (dppKey() !== key) return;
+      dpp.data = null; $('dppMeta').textContent = ''; $('dppList').innerHTML = '<div class="err">' + esc(e) + '</div>'; dppFoot();
+    });
+  }
+  function dppSet(d) {                         // fresh data from the server after a save / upload: sheet = truth
+    var key = dppKey();
+    dpp.cache[key] = dppStamp(d); delete dpp.selBy[key];
+    dppShow(key);
+  }
+  function dppDayDiff(k, today) {
+    if (!k) return null;
+    var a = k.split('-').map(Number), b = today.split('-').map(Number);
+    return Math.round((Date.UTC(a[0], a[1] - 1, a[2]) - Date.UTC(b[0], b[1] - 1, b[2])) / 86400000);
+  }
+  function dppRender() {
+    var d = dpp.data; if (!d) return;
+    var q = dpp.q.toLowerCase();
+    var rows = d.rows.filter(function (r) {
+      if (q && (r.id + ' ' + r.name).toLowerCase().indexOf(q) < 0) return false;
+      if (dpp.filter === 'sel') return !!dpp.sel[r.row];
+      if (dpp.filter === 'near') { var dd = dppDayDiff(r.liveKey, d.today); return !!dpp.sel[r.row] || (dd !== null && dd >= -3 && dd <= 7); }
+      return true;
+    });
+    $('dppList').innerHTML = rows.length ? rows.map(function (r) {
+      var on = !!dpp.sel[r.row], changed = on !== r.update;
+      var dd = dppDayDiff(r.liveKey, d.today);
+      var when = (dd === 0 ? 'Today' : dd === 1 ? 'Tomorrow' : dd === -1 ? 'Yesterday' : (r.liveDate || '')) +
+        (r.liveStart ? ' · ' + String(r.liveStart).replace(/:00$/, '') + (r.liveEnd ? '–' + String(r.liveEnd).replace(/:00$/, '') : '') : '');
+      return '<label class="dpprow' + (on ? ' on' : '') + '">' +
+        '<input type="checkbox" data-row="' + r.row + '"' + (on ? ' checked' : '') + (r.hasTab ? '' : ' disabled') + '>' +
+        '<div class="dppmain"><div class="t1">' + esc(r.name || '(no name)') + '</div>' +
+        '<div class="code">' + esc(r.id) + (r.position !== '' ? ' · pos ' + esc(r.position) : '') + '</div></div>' +
+        '<div class="dppside">' + (when ? '<span class="pill' + (dd === 0 ? ' wait' : '') + '">' + ic('calendar') + esc(when) + '</span>' : '') +
+        (r.hasTab ? '' : '<span class="pill bad">' + ic('alert') + 'Tab missing</span>') +
+        (changed ? '<span class="pill wait">not saved</span>' : (r.update ? '<span class="pill ok">Yes in sheet</span>' : '')) +
+        '<button class="btn sm icon-only" data-edit="' + r.row + '" title="Change date & time" aria-label="Change date and time">' + ic('clock') + '</button></div></label>';
+    }).join('') : '<div class="muted" style="padding:10px 2px">' + (dpp.filter === 'sel' ? 'No DPP selected.' : dpp.filter === 'near' ? 'No DPP around today (−3 to +7 days). Use "All" to see every DPP.' : 'No DPP found.') + '</div>';
+    dppFoot();
+  }
+  function dppFoot() {
+    var n = Object.keys(dpp.sel).filter(function (k) { return dpp.sel[k]; }).length;
+    var ch = dppChanges().length;
+    $('dppCount').innerHTML = '<b>' + n + '</b> selected' + (ch ? ' · <span style="color:var(--warn)">' + ch + ' change(s) not saved to sheet</span>' : '');
+    $('dppSave').disabled = dpp.busy || !ch;
+    $('dppGo').disabled = dpp.busy || !n || !dpp.data;
+    $('dppReload').disabled = dpp.busy;
+  }
+  function dppSave() {
+    var ch = dppChanges();
+    if (!ch.length) return Promise.resolve(true);
+    return call('webDppSetFlags', dppKey(), ch.map(function (c) { return { row: c.row, yes: c.yes }; })).then(function (d) { dppSet(d); return true; });
+  }
+  // ---------- change live date / time of one DPP ----------
+  function dppToIso(dmy) {                    // "17/10/2026" -> "2026-10-17"
+    var m = String(dmy || '').match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+    if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+    m = String(dmy || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[0] : '';
+  }
+  function dppToTime(t) {                     // "11:15:00" / "11:15 AM" -> "11:15:00"
+    var m = String(t || '').match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?/); if (!m) return '';
+    var h = Number(m[1]) % 24; if (m[4] && /p/i.test(m[4]) && h < 12) h += 12; if (m[4] && /a/i.test(m[4]) && h === 12) h = 0;
+    return ('0' + h).slice(-2) + ':' + m[2] + ':' + (m[3] || '00');
+  }
+  function dppEdit(r) {
+    var d = $('dppDlg');
+    $('dppDlgS').textContent = r.name + ' · ' + r.id;
+    $('dppD').value = r.liveKey || dppToIso(r.liveDate);
+    $('dppS').value = dppToTime(r.liveStart); $('dppE').value = dppToTime(r.liveEnd);
+    $('dppDlgErr').hidden = true;
+    $('dppDlgNo').onclick = function () { d.close(); };
+    $('dppDlgYes').onclick = function () {
+      var nd = $('dppD').value, ns = $('dppS').value, ne = $('dppE').value;
+      var err = !nd ? 'Choose a date.' : (!ns || !ne) ? 'Enter start and end time.' : (ne.length === 5 ? ne + ':00' : ne) <= (ns.length === 5 ? ns + ':00' : ns) ? 'End time must be after the start time.' : '';
+      if (err) { $('dppDlgErr').textContent = err; $('dppDlgErr').hidden = false; return; }
+      d.close();
+      var nice = nd.split('-').reverse().join('/');
+      confirmBox2('Change date & time?', r.name + ' (' + r.id + ')\n\nlive_date: ' + (r.liveDate || '—') + '  →  ' + nice +
+        '\nlive_start_time: ' + (r.liveStart || '—') + '  →  ' + ns + '\nlive_end_time: ' + (r.liveEnd || '—') + '  →  ' + ne +
+        '\n\nThis is written to the DPP sheet. Upload the DPP again so Internal Metrics gets the new time.', 'Yes, save').then(function (y) {
+        if (!y) return;
+        var keepSel = JSON.parse(JSON.stringify(dpp.sel));
+        dppBusy(true, 'Saving date & time…');
+        call('webDppSetSchedule', dppKey(), r.row, nd, ns, ne).then(function (nd2) {
+          dppBusy(false); dppSet(nd2);
+          dpp.sel = dpp.selBy[dppKey()] = keepSel; dppRender();     // keep ticks that were not saved yet
+          toast('Date & time saved – upload this DPP to send it to Internal Metrics');
+        }).catch(function (e) { dppBusy(false); dppFoot(); toast(String(e)); });
+      });
+    };
+    d.showModal();
+  }
+  $('dppList').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-edit]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    if (dpp.busy || !dpp.data) return;
+    var r = dpp.data.rows.filter(function (x) { return x.row === Number(b.getAttribute('data-edit')); })[0];
+    if (r) dppEdit(r);
+  });
+  $('dppList').addEventListener('change', function (e) {
+    var cb = e.target.closest('input[data-row]'); if (!cb) return;
+    dpp.sel[Number(cb.getAttribute('data-row'))] = cb.checked;
+    dppRender();
+  });
+  // ticks that are not saved yet are kept per subject + language, so switching is safe
+  $('dppSubj').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || dpp.busy) return;
+    dpp.subj = b.getAttribute('data-s'); try { localStorage.setItem('dpp_subj', dpp.subj); } catch (x) {}
+    dppSyncTabs(); dppLoad();
+  });
+  $('dppLang').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || dpp.busy) return;
+    dpp.lang = b.getAttribute('data-l'); try { localStorage.setItem('dpp_lang', dpp.lang); } catch (x) {}
+    dppSyncTabs(); dppLoad();
+  });
+  $('dppFilter').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    dpp.filter = b.getAttribute('data-f');
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    dppRender();
+  });
+  $('dppMeta').addEventListener('click', function (e) {
+    if (!e.target.closest('#dppOpenSheet') || !dpp.data) return;
+    e.preventDefault();
+    sheetView(dpp.data.fileName, dpp.data.fileUrl);
+  });
+  $('dppSearch').addEventListener('input', function () { dpp.q = this.value.trim(); dppRender(); });
+  $('dppReload').onclick = function () {
+    if (dppChanges().length && !window.confirm('Discard the selections that are not saved to the sheet?')) return;
+    dppLoad(true);
+  };
+  $('dppSave').onclick = function () {
+    var ch = dppChanges(); if (!ch.length) return;
+    confirmBox2('Save Update column?', 'The "Update" column in the DPP sheet will be changed:\n\n' +
+      ch.map(function (c) { return (c.yes ? 'Yes  ← ' : 'No   ← ') + c.name + ' (' + c.id + ')'; }).join('\n'), 'Yes, save').then(function (y) {
+      if (!y) return;
+      dppBusy(true, 'Saving…');
+      dppSave().then(function () { dppBusy(false); dppRender(); toast('Saved to the DPP sheet'); })
+        .catch(function (e) { dppBusy(false); dppFoot(); toast(String(e)); });
+    });
+  };
+  $('dppGo').onclick = function () {
+    var d = dpp.data; if (!d) return;
+    var picked = d.rows.filter(function (r) { return dpp.sel[r.row]; });
+    if (!picked.length) return;
+    var ch = dppChanges();
+    var nm = (dpp.lang === 'HIN' ? 'Hindi' : 'English');
+    confirmBox2('Upload ' + picked.length + ' DPP to Internal Metrics (' + nm + ')' + envTag() + '?',
+      (ch.length ? 'First the Update column in the sheet is saved (' + ch.length + ' change(s)).\n\n' : '') +
+      'Only these DPPs will be uploaded (Update = Yes):\n• ' + picked.map(function (r) { return r.name + ' (' + r.id + ')'; }).join('\n• ') +
+      '\n\nA small file with just these DPPs is created, uploaded and deleted again.', 'Yes, upload').then(function (y) {
+      if (!y) return;
+      dppBusy(true, ch.length ? 'Saving selection…' : 'Uploading…');
+      $('dppResult').innerHTML = '';
+      dppSave().then(function () {
+        dppBusy(true, 'Building file + uploading…');
+        return call('webDppUpload', dppKey());
+      }).then(function (r) {
+        dppBusy(false); dppRender();
+        var h = '<div class="card" style="margin-top:14px"><div class="head"><div class="icon">' + ic(r.ok ? 'check' : 'alert') + '</div><div class="title">' +
+          (r.ok ? 'DPP uploaded successfully' : 'DPP upload had a problem') + '<small>HTTP ' + r.code + ' · file ' + r.sizeKb + ' KB · ' + r.selected.length + ' DPP sent</small></div>' +
+          '<span class="status ' + (r.ok ? 's-ok' : 's-err') + '">' + (r.ok ? 'Done' : 'Check') + '</span></div>';
+        if (r.updated.length) h += '<div class="sect">Updated test series</div><ul class="list">' + r.updated.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+        if (r.errors.length) h += '<div class="err">' + esc(r.errors.join('\n')) + '</div>';
+        if (!r.finished) h += '<div class="warn">Internal Metrics did not report "Finished db update successfully".</div>';
+        h += '<details><summary>Server log</summary><pre>' + esc(r.log || '') + '</pre></details></div>';
+        $('dppResult').innerHTML = h;
+        toast(r.ok ? 'DPP uploaded' : 'DPP upload – check the result');
+      }).catch(function (e) {
+        dppBusy(false); dppFoot();
+        $('dppResult').innerHTML = '<div class="err" style="margin-top:14px">' + esc(e) + '</div>';
+        if (isTokenErr(e)) openToken('Your token has expired or is invalid (401). Paste a new token to continue.');
+      });
+    });
+  };
+  dppSyncTabs();
+
+  function showView(v) {
+    $('v-lec').hidden = v !== 'lec';
+    $('v-np').hidden = v !== 'np';
+    $('v-adm').hidden = v !== 'adm';
+    $('v-today').hidden = v !== 'today';
+    $('v-dpp').hidden = v !== 'dpp';
+    $('v-files').hidden = v !== 'files';
+    $('v-thumb').hidden = v !== 'thumb';
+    if (v === 'thumb' && !$('thCode').value && $('fCode').value) $('thCode').value = $('fCode').value.trim().toUpperCase().replace(/ML\d+$/, '');
+    if (v === 'files' && !files.loaded) { files.loaded = true; filesLoad(); }
+    if (v === 'dpp' && !dpp.loaded) { dpp.loaded = true; dppLoad(); }
+    if (v === 'adm') loadAdmin();
+    if (v === 'today' && !td.loaded) { td.loaded = true; tdLoad(); }
+    Array.prototype.forEach.call($('nav').querySelectorAll('button'), function (x) { x.classList.toggle('on', x.getAttribute('data-v') === v); });
+    try { localStorage.setItem('np_view', v); } catch (x) {}
+    if (v === 'np' && !upLoaded && can('upload')) { upLoaded = true; upLoad(); }
+    if (v === 'np' && !npLoaded && state.subjects.length && can('nodepath')) {
+      npLoaded = true; render();
+      state.subjects.forEach(function (s) { preview(s.key); });
+    }
+  }
+  // ======================= UPLOAD TO INTERNAL METRICS =======================
+  var up = { lang: 'ENG', info: null, timer: null, until: 0, busy: false }, upLoaded = false;
+  function stPill(s) {
+    s = String(s || 'PROCESSING');
+    return '<span class="pill ' + (/SUCCESS/i.test(s) ? 'ok' : /FAIL/i.test(s) ? 'bad' : 'wait') + '">' + esc(s) + '</span>';
+  }
+  function fmtTime(ms) { try { return new Date(ms).toLocaleString(); } catch (e) { return ''; } }
+  function upBusy(on, label) {
+    up.busy = on;
+    ['upGo', 'upCheck', 'upReload'].forEach(function (id) { $(id).disabled = on; });
+    $('upGo').innerHTML = on && label ? '<span class="spin"></span> ' + esc(label) : ic('upload') + 'Upload to Internal Metrics';
+  }
+  function upRenderInfo(d) {
+    up.info = d;
+    var h = '<div class="hint">' + esc(d.fileName) + ' · tab "' + esc(d.tabName) + '" · batchId ' + d.batchId + '</div><div class="uplist">';
+    d.rows.forEach(function (r) {
+      h += '<div class="uprow"><b>' + esc(r.subject || r.pathId) + '</b><span class="muted">' + esc(r.pathId) + (r.version ? ' · ' + esc(r.version) : '') + '</span>' +
+        '<span class="pill ' + (r.update ? 'ok' : '') + '">update: ' + (r.update ? 'yes' : 'no') + '</span>' +
+        '<button class="btn sm" data-uprow="' + r.row + '" data-upyes="' + (r.update ? '0' : '1') + '" data-upname="' + esc(r.subject || r.pathId) + '">Set ' + (r.update ? 'no' : 'yes') + '</button></div>';
+    });
+    h += '</div>';
+    $('upInfo').className = ''; $('upInfo').style.padding = ''; $('upInfo').innerHTML = h;
+  }
+  function upRenderStatus(hst) {
+    var last = hst.last, cur = hst.current, h = '';
+    if (last) {
+      h += '<div class="title" style="margin-top:4px">Last upload <small>' + fmtTime(last.at) + ' · ' + esc((last.subjects || []).join(', ')) + '</small></div>';
+      if (!cur) h += '<div class="hint"><span class="spin"></span> Waiting for Internal Metrics to start processing…</div>';
+      else {
+        h += '<div class="uplist">';
+        cur.items.forEach(function (it) {
+          h += '<div class="uprow" style="flex-direction:column;align-items:stretch"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>' + esc(it.subject) + '</b>' + stPill(it.status) +
+            '<span class="muted">' + esc(it.pathId) + '</span></div>' +
+            (it.details && it.details.length ? '<div class="uperr">' + esc(it.details.join('\n')) + '</div>' : '') + '</div>';
+        });
+        h += '</div>';
+        if (!last.allDone) h += '<div class="hint"><span class="spin"></span> Processing… checking again every 30 seconds (takes about 5 minutes).</div>';
+      }
+    }
+    $('upStatus').innerHTML = h;
+    var gh = (hst.groups || []).map(function (g) {
+      var bad = g.items.some(function (i) { return /FAIL/i.test(i.status); });
+      return '<div class="entry ' + (bad ? 'bad' : 'ok') + '"><b>' + esc(g.uploadTime) + ' · ' + esc((g.items[0] || {}).by || '') + '</b>' +
+        g.items.map(function (i) { return esc(i.subject) + ': ' + esc(i.status) + (i.details && i.details.length ? '\n  ' + esc(i.details.join('\n  ')) : ''); }).join('\n') + '</div>';
+    }).join('');
+    $('upHist').innerHTML = gh || '<div class="hint">No uploads yet for this batch.</div>';
+  }
+  function upStopPoll() { if (up.timer) { clearInterval(up.timer); up.timer = null; } }
+  function upCheck(quiet) {
+    if (!quiet) upBusy(true, 'Checking…');
+    return call('webUploadHistory', up.lang).then(function (hst) {
+      upRenderStatus(hst);
+      if (hst.last && hst.last.allDone) {
+        if (up.timer) {
+          var fail = (hst.current.items || []).filter(function (i) { return /FAIL/i.test(i.status); }).length;
+          toast(fail ? 'Internal Metrics: ' + fail + ' subject(s) failed – see details' : 'Internal Metrics: all subjects updated');
+        }
+        upStopPoll();
+      }
+      if (Date.now() > up.until) upStopPoll();
+    }).catch(function (e) { $('upStatus').innerHTML = '<div class="err">' + esc(e) + '</div>'; if (isTokenErr(e)) openToken('Your token has expired or is invalid (401). Paste a new token to continue.'); })
+      .then(function () { if (!quiet) upBusy(false); });
+  }
+  function upStartPoll() {
+    upStopPoll();
+    up.until = Date.now() + 15 * 60 * 1000;
+    up.timer = setInterval(function () { upCheck(true); }, 30000);
+  }
+  function upLoad(force) {
+    upStopPoll();
+    $('upInfo').className = 'center'; $('upInfo').innerHTML = '<span class="spin"></span> Loading…';
+    $('upStatus').innerHTML = ''; $('upHist').innerHTML = '';
+    return call('webUploadInfo', up.lang, force === true).then(function (d) {
+      upRenderInfo(d);
+      return upCheck(true).then(function () {
+        if (d.last && !d.last.done && Date.now() - d.last.at < 15 * 60 * 1000) upStartPoll();   // an upload is still running
+      });
+    }).catch(function (e) { $('upInfo').className = ''; $('upInfo').innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+  $('upLang').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b || up.busy) return;
+    up.lang = b.getAttribute('data-l');
+    Array.prototype.forEach.call(this.children, function (x) { x.classList.toggle('on', x === b); });
+    upLoad();
+  });
+  $('upReload').onclick = function () { upLoad(true); };
+  $('upCheck').onclick = function () { upCheck(false); };
+  $('upInfo').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-uprow]'); if (!b || up.busy) return;
+    var yes = b.getAttribute('data-upyes') === '1', nm = b.getAttribute('data-upname');
+    confirmBox2('Set update = ' + (yes ? 'yes' : 'no') + ' for ' + nm + '?', 'This changes the "update" column in the NodePath info tab (' + (up.lang === 'HIN' ? 'Hindi' : 'English') + ').', 'Yes, change')
+      .then(function (y) {
+        if (!y) return;
+        upBusy(true, 'Saving…');
+        call('webUploadSetFlag', up.lang, Number(b.getAttribute('data-uprow')), yes).then(upRenderInfo)
+          .catch(function (e) { toast(String(e)); }).then(function () { upBusy(false); });
+      });
+  });
+  $('upGo').onclick = function () {
+    if (!up.info) return;
+    var yes = up.info.rows.filter(function (r) { return r.update; }).map(function (r) { return r.subject || r.pathId; });
+    if (!yes.length) { toast('No subject has update = yes'); return; }
+    confirmBox2('Upload to Internal Metrics (' + (up.lang === 'HIN' ? 'Hindi' : 'English') + ')' + envTag() + '?',
+      'File: ' + up.info.fileName + '\nbatchId: ' + up.info.batchId + '\n\nSubjects with update = yes (these will be processed):\n• ' + yes.join('\n• ') +
+      '\n\nInternal Metrics takes about 5 minutes. The result will appear here.', 'Yes, upload').then(function (y) {
+      if (!y) return;
+      upBusy(true, 'Uploading…');
+      call('webUploadNow', up.lang).then(function (r) {
+        if (!r.ok) {
+          $('upStatus').innerHTML = '<div class="err">Upload failed (HTTP ' + r.code + ')\n' + esc(r.body) + '</div>';
+          toast('Upload failed – see details');
+          return;
+        }
+        toast('Uploaded – Internal Metrics is processing (about 5 min)');
+        upRenderStatus({ last: r.last, current: null, groups: [] });
+        upStartPoll();
+        setTimeout(function () { upCheck(true); }, 15000);
+      }).catch(function (e) {
+        $('upStatus').innerHTML = '<div class="err">' + esc(e) + '</div>';
+        if (isTokenErr(e)) openToken('Your token has expired or is invalid (401). Paste a new token to continue.');
+      }).then(function () { upBusy(false); });
+    });
+  };
+
+  // load the Admin UI (Admin.html) from the server the first time it is opened
+  var admLoaded = false;
+  function loadAdmin() {
+    if (admLoaded) return;
+    admLoaded = true;
+    call('adminUiHtml').then(function (html) {
+      var host = $('admHost');
+      host.className = '';
+      host.innerHTML = html;
+      Array.prototype.forEach.call(host.querySelectorAll('script'), function (old) {
+        var s = document.createElement('script');
+        s.textContent = old.textContent;
+        old.parentNode.replaceChild(s, old);
+      });
+    }).catch(function (e) { admLoaded = false; $('admHost').innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+  // ---------- Production / Stage switch ----------
+  var ENV = { env: 'PROD', until: 0 }, envTimer = null;
+  function envTag() { return ENV.env === 'STAGE' ? ' [STAGE]' : ''; }
+  function applyEnv(ei) {
+    ENV = ei && ei.env === 'STAGE' ? ei : { env: 'PROD', until: 0 };
+    var st = ENV.env === 'STAGE';
+    document.body.classList.toggle('stage', st);
+    Array.prototype.forEach.call($('envSw').children, function (b) { b.classList.toggle('on', b.getAttribute('data-e') === ENV.env); });
+    $('envTag').hidden = !st;
+    $('stageBar').hidden = !st;
+    if (st) $('stageBar').innerHTML = ic('alert') + '<div><b>STAGE MODE (test server)</b> – pushes, DPP upload, NodePath upload and Clear Cache go to <b>Stage</b>. Production is not touched and production sheets (backup, RECORDED, NodePath) are not changed by pushes.' +
+      (ENV.untilText ? ' Switches back to Production automatically at <b>' + esc(ENV.untilText) + '</b>.' : '') + '</div><button class="btn sm" id="envBack">Back to Production</button>';
+    $('tokTitle').textContent = st ? 'Your Stage token (test server)' : 'Your Internal Metrics token';
+    $('tokHint').innerHTML = st ? 'Open <b>Stage</b> Internal Metrics (internal-metrics-ui-stage.arivihan.com) → DevTools (F12) → Network → click any <b>api/v1</b> request → Request Headers → copy the value of <b>avtoken</b>. The Stage token is kept separately from your production token.'
+      : 'Open Internal Metrics → DevTools (F12) → Network → click any request → Request Headers → copy the value of <b>avtoken</b>. Only you can see your token; pushes you make will use it.';
+    clearTimeout(envTimer);
+    if (st && ENV.until) envTimer = setTimeout(function () {
+      applyEnv(null); toast('Stage mode ended – back on Production');
+      call('webTokenStatus', false).then(tokRender).catch(function () {});
+    }, Math.max(0, ENV.until - Date.now()) + 1000);
+    upLoaded = false;                          // NodePath upload status is per server
+  }
+  function setEnv(env) {
+    if (env === ENV.env || lec.busy) return;
+    var go = function () {
+      $('envSw').style.opacity = '.5';
+      call('webSetEnv', env).then(function (r) {
+        applyEnv(r.envInfo); tokRender(r.token);
+        lecLog('Server', env === 'STAGE' ? 'Switched to STAGE (test server).' : 'Back on PRODUCTION.', env === 'STAGE' ? 'bad' : 'ok');
+        toast(env === 'STAGE' ? 'Stage mode on' : 'Back on Production');
+        if (!r.token.valid) openToken(env === 'STAGE' ? 'Add your Stage token to push to the test server.' : 'No working production token. Paste your Internal Metrics token.');
+        if (!$('v-np').hidden && can('upload')) { upLoaded = true; upLoad(); }
+      }).catch(function (e) { toast(String(e)); })
+        .then(function () { $('envSw').style.opacity = ''; });
+    };
+    if (env === 'STAGE') confirmBox('Switch to Stage?', 'Everything you push from now on goes to the STAGE (test) Internal Metrics server:\n• Lecture / Nodes / DPP push\n• DPP upload, NodePath upload\n• Clear Cache\n\nProduction is not touched. Production sheets (backup tab, RECORDED, NodePath sheet) are NOT changed by test pushes.\nNote: "Click here for links" will read the video links from Stage.\n\nStage switches back to Production by itself after 4 hours.', 'Yes, use Stage').then(function (y) { if (y) go(); });
+    else go();
+  }
+  $('envSw').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) setEnv(b.getAttribute('data-e')); });
+  $('stageBar').addEventListener('click', function (e) { if (e.target.closest('#envBack')) setEnv('PROD'); });
+  function navGroups() {               // hide a group label when none of its buttons is visible
+    var lbl = null, any = false;
+    Array.prototype.forEach.call($('nav').children, function (x) {
+      if (x.classList.contains('nsec')) { if (lbl) lbl.hidden = !any; lbl = x; any = false; }
+      else if (!x.hidden) any = true;
+    });
+    if (lbl) lbl.hidden = !any;
+  }
+  try { $('topDate').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }); } catch (x) {}
+  $('nav').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (b) showView(b.getAttribute('data-v'));
+  });
+
+  function showFreeze(f, text) {
+    var b = $('freezeBar');
+    if (!f && !text) { b.hidden = true; return; }
+    b.textContent = text || ('EMERGENCY STOP is ON – pushes and sheet updates are blocked.\nTurned on by ' + f.by + ' at ' + f.at + (f.reason ? '\nReason: ' + f.reason : '') + '\nAsk an admin to turn it off (Admin → Safety).');
+    b.hidden = false;
+  }
+  function showAuth(url) {
+    var b = $('authBar');
+    b.innerHTML = '<b>Permission incomplete.</b> The script was not allowed to connect to an "external service" (Internal Metrics API), so pushes will fail.<br>' +
+      (url ? 'Click the button below, tick <b>"Select all"</b> on the Google page and Allow, then refresh this page.<br><a class="btn primary" target="_blank" rel="noopener" href="' + esc(url) + '">Grant permission</a>'
+           : 'Go to myaccount.google.com/permissions and <b>Remove</b> this script\'s access, then reopen this page and tick <b>"Select all"</b> when allowing.<br><a class="btn primary" target="_blank" rel="noopener" href="https://myaccount.google.com/permissions">Open permissions</a>');
+    b.hidden = false;
+  }
+  var _lecLog = lecLog;
+  lecLog = function (title, text, kind) {
+    if (/permission to call|script\.external_request/i.test(String(text))) showAuth('');
+    if (/EMERGENCY STOP is ON/.test(String(text))) showFreeze(null, String(text).replace(/^Error:\s*/, ''));
+    if (isTokenErr(text)) setTimeout(function () { openToken('Your token has expired or is invalid (401). Paste a new token to continue.'); }, 0);
+    return _lecLog(title, text, kind);
+  };
+
+  // ---------- Token ----------
+  function tokRender(st) {
+    var src = st.env === 'STAGE' ? (st.source === 'own' ? 'Your Stage token' : 'No Stage token set') : st.source === 'own' ? 'Your own token' : st.source === 'shared' ? 'Shared token (no personal token set)' :
+      (st.sharedAllowed === false ? 'No token – shared token not allowed for you, add your own' : 'No token set');
+    $('tokKv').innerHTML =
+      '<span>Using</span><b>' + esc(src) + (st.tail ? ' (…' + esc(st.tail) + ')' : '') + '</b>' +
+      '<span>Status</span><b style="color:' + (st.valid ? 'var(--ok)' : 'var(--err)') + '">' + (st.valid ? 'Valid' : (st.code === 401 ? 'Expired / invalid (401)' : st.code ? 'Error ' + st.code : 'Missing')) + '</b>' +
+      (st.savedAt ? '<span>Saved</span><b>' + esc(st.savedAt) + '</b>' : '');
+    $('tokClear').disabled = st.source !== 'own';
+    $('tokBtn').classList.toggle('bad', !st.valid);
+    var ts = $('tokState'); ts.className = st.valid ? 'ok' : 'bad';
+    ts.lastChild.textContent = (st.env === 'STAGE' ? 'Stage token ' : 'Token ') + (st.valid ? 'valid' + (st.tail ? ' · …' + st.tail : '') : 'missing / expired');
+  }
+  function openToken(errMsg) {
+    $('tokErr').textContent = errMsg || ''; $('tokErr').hidden = !errMsg;
+    $('tokIn').value = '';
+    $('tokKv').innerHTML = '<span>Status</span><b>Checking…</b>';
+    if (!$('tokDlg').open) $('tokDlg').showModal();
+    call('webTokenStatus', !!errMsg).then(tokRender).catch(function (e) { $('tokErr').textContent = e; $('tokErr').hidden = false; });
+    setTimeout(function () { $('tokIn').focus(); }, 50);
+  }
+  $('tokBtn').onclick = function () { openToken(''); };
+  $('tokClose').onclick = function () { $('tokDlg').close(); };
+  $('tokSave').onclick = function () {
+    var t = $('tokIn').value.trim();
+    if (!t) { $('tokIn').focus(); return; }
+    $('tokSave').disabled = true; $('tokSave').textContent = 'Testing…';
+    call('webTokenSave', t).then(function (st) {
+      tokRender(st); $('tokIn').value = ''; $('tokErr').hidden = true;
+      toast('Token saved and working'); $('tokDlg').close();
+    }).catch(function (e) { $('tokErr').textContent = e; $('tokErr').hidden = false; })
+      .then(function () { $('tokSave').disabled = false; $('tokSave').textContent = 'Save & test'; });
+  };
+  $('tokClear').onclick = function () {
+    confirmBox2('Remove your token?', 'Your own token will be deleted. You will use the shared token only if an admin allowed it.', 'Yes, remove').then(function (y) {
+    if (!y) return;
+    call('webTokenClear').then(function (st) { tokRender(st); toast('Your token was removed – using shared token'); })
+      .catch(function (e) { $('tokErr').textContent = e; $('tokErr').hidden = false; });
+    });
+  };
+  function isTokenErr(t) { return /TOKEN EXPIRED|NO TOKEN|\b401\b/i.test(String(t || '')); }
+
+  function blockAll(html) {
+    $('v-lec').hidden = true; $('v-np').hidden = true; $('v-today').hidden = true; $('v-dpp').hidden = true; $('v-files').hidden = true; $('v-thumb').hidden = true; $('nav').style.display = 'none';
+    var m = document.querySelector('main');
+    var d = document.createElement('div'); d.className = 'center'; d.innerHTML = html; m.appendChild(d);
+  }
+
+  hydrateIcons(document);
+  // ---------- Google sign-in ----------
+  var CFG_ = null;
+  function showLogin(msg) {
+    $('login').hidden = false;
+    $('loginErr').textContent = msg || ''; $('loginErr').hidden = !msg;
+    var draw = function () {
+      if (!window.google || !google.accounts || !google.accounts.id) return setTimeout(draw, 150);
+      google.accounts.id.initialize({ client_id: CFG_.clientId, callback: function (r) {
+        fetch('/api/auth', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential: r.credential }) })
+          .then(function (x) { return x.json(); })
+          .then(function (j) { if (j.ok) location.reload(); else { $('loginErr').textContent = j.error || 'Sign-in failed'; $('loginErr').hidden = false; } })
+          .catch(function () { $('loginErr').textContent = 'Network error – try again.'; $('loginErr').hidden = false; });
+      } });
+      google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' });
+    };
+    if (!document.getElementById('gsi')) {
+      var sc = document.createElement('script'); sc.id = 'gsi'; sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; document.head.appendChild(sc);
+    }
+    if (CFG_) draw();
+  }
+  $('outBtn').onclick = function () {
+    confirmBox('Sign out?', 'You will need to sign in with Google again to use the dashboard.', 'Sign out').then(function (y) {
+      if (!y) return;
+      fetch('/api/auth', { method: 'DELETE', credentials: 'same-origin' }).then(function () { location.reload(); });
+    });
+  };
+
+  fetch('/api/config', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (c) {
+    CFG_ = c;
+    if (!c.ok) { blockAll('<div class="err">' + esc(c.error || 'Server is not configured') + '</div>'); return; }
+    if (!c.email) { showLogin(''); return; }
+    init();
+  }).catch(function () { blockAll('<div class="err">Could not reach the server. Check your internet connection and reload.</div>'); });
+
+  function init() {
+    var view = 'lec';
+    try {
+      var f = localStorage.getItem('np_filter');
+      if (f) { state.filter = f; Array.prototype.forEach.call($('tabs').children, function (x) { x.classList.toggle('on', x.getAttribute('data-f') === f); }); }
+      var l = localStorage.getItem('np_lang');
+      if (l === 'HIN' || l === 'ENG') { lec.lang = l; Array.prototype.forEach.call($('lang').children, function (x) { x.classList.toggle('on', x.getAttribute('data-l') === l); }); }
+      var v = localStorage.getItem('np_view');
+      if (v === 'np' || v === 'lec' || v === 'adm' || v === 'today' || v === 'dpp' || v === 'files' || v === 'thumb') view = v;
+    } catch (x) {}
+    lecBusy(true, 'Loading…');
+    call('webInit', lec.lang).then(function (info) {
+      $('who').textContent = (info.email || '(email not found)').replace(/@.*/, '');
+      $('who').title = info.email || '';
+      if (info.tab) { var tb = document.createElement('div'); tb.style.cssText = 'color:#93a3d8;font-weight:500'; tb.textContent = 'Sheet tab: ' + info.tab; $('who').appendChild(tb); }
+      if (!info.allowed) {
+        blockAll('You do not have permission.<br>' + esc(info.email || '') + '<br><br>Ask an admin to add this email in Admin → Users, then reload.<br><br><button class="btn" onclick="fetch(\'/api/auth\',{method:\'DELETE\'}).then(function(){location.reload()})">Sign in with another account</button>');
+        return;
+      }
+      state.subjects = info.subjects;
+      if (info.isAdmin) $('navAdm').hidden = false;
+      else if (view === 'adm') view = 'lec';
+      applyFeatures(info.features);
+      navGroups();
+      if (!viewOk(view)) view = ['today', 'lec', 'np', 'dpp', 'thumb', 'files'].filter(viewOk)[0] || (info.isAdmin ? 'adm' : '');
+      if (!view) {
+        lecBusy(false);
+        blockAll('No feature is enabled for your account yet.<br>' + esc(info.email || '') + '<br><br>Ask an admin to allow features in Admin → Access.');
+        return;
+      }
+      if (info.authUrl) showAuth(info.authUrl);
+      if (info.freeze) showFreeze(info.freeze);
+      if (info.pdfBase) PDF_BASE = info.pdfBase;
+      applyEnv(info.envInfo);
+      // SPEED: token status + lecture form arrive with the same call
+      var st = info.token;
+      if (st) {
+        tokRender(st);
+        if (!st.valid) openToken(st.code === 401 ? 'Your token has expired or is invalid (401). Paste a new token to continue.' : 'No working token found. Paste your Internal Metrics token.');
+      }
+      lecBusy(false);
+      if (info.lecture) fillLec(info.lecture);
+      else if (info.lectureError) lecLog('Load', info.lectureError, 'bad');
+      else if (can('lecture') && !info.token) lecLoad();          // older server (fallback only)
+      showView(view);
+      // load Today's data in the background (so the tab opens instantly)
+      if (can('today') && view !== 'today') setTimeout(function () { if (!td.loaded) { td.loaded = true; tdLoad(); } }, 1500);
+    }).catch(function (e) {
+      lecBusy(false);
+      if (/shared with the service account/i.test(String(e))) {
+        blockAll('<div class="err">The server cannot open the Batch OPS sheet.<br>Share the sheet with the service account (Editor) – see the setup guide – then reload this page.<br><br>' + esc(e) + '</div>');
+      } else blockAll('<div class="err">' + esc(e) + '</div>');
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!-- Admin.html – UI of the Admin tab. Loaded by the WebApp page (admins only). -->
+<style>
+  .adm-wrap { display: flex; flex-direction: column; gap: 14px; }
+  .adm-login { max-width: 420px; margin: 0 auto; width: 100%; }
+  .adm-sub { display: flex; gap: 6px; flex-wrap: wrap; }
+  .adm-sub button { border: 1px solid var(--line); background: var(--card); color: var(--ink2); padding: 7px 12px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: var(--shadow); }
+  .adm-sub button:hover { background: var(--chip); }
+  .adm-sub button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .adm-tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .adm-tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .adm-tbl th, .adm-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+  .adm-tbl th { background: var(--chip); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; position: sticky; top: 0; }
+  .adm-tbl tbody tr:hover td { background: color-mix(in srgb, var(--chip) 60%, transparent); }
+  .adm-tbl td.wrap { white-space: pre-wrap; min-width: 240px; max-width: 480px; word-break: break-word; }
+  .adm-tbl tr:last-child td { border-bottom: 0; }
+  .adm-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .adm-row .inp { flex: 1; min-width: 180px; }
+  .adm-sel { border: 1px solid var(--line2); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 10px; font: inherit; min-height: 42px; box-shadow: var(--shadow); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--chip); }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.bad { color: var(--err); background: var(--err-bg); }
+  .pill.adm { color: var(--accent); }
+  .btn.sm { min-height: 30px; padding: 4px 10px; font-size: 12px; }
+  .adm-scroll { max-height: 60vh; overflow: auto; }
+  .safe-card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .safe-card.alarm { border: 1px solid var(--err); background: var(--err-bg); }
+  .safe-card.warnbox { border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-bg); color: var(--warn); }
+  .safe-card .title { display: flex; align-items: center; gap: 8px; }
+  .safe-card .title { margin: 0; }
+  .safe-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+  .safe-item { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+  .safe-item .grow { flex: 1; min-width: 200px; word-break: break-word; }
+  #admPassDlg { border: 0; border-radius: 14px; padding: 0; max-width: 420px; width: calc(100% - 32px); background: var(--card); color: var(--ink); }
+  #admPassDlg::backdrop { background: rgba(0,0,0,.45); }
+  #admPassDlg .in { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .acc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .acc-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .acc-card.focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .acc-card .who { font-weight: 700; word-break: break-all; }
+  .acc-opt { display: flex; gap: 8px; align-items: center; font-size: 13.5px; padding: 3px 0; cursor: pointer; }
+  .acc-opt.sub { padding-left: 24px; }
+  .acc-opt.off { opacity: .45; }
+  .acc-opt input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .acc-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+</style>
+
+<div class="adm-wrap" id="admApp">
+  <div class="center"><span class="spin"></span> Loading…</div>
+</div>
+
+<script>
+(function () {
+  var A = { st: null, data: null, tab: 'users', logFilter: '', logAction: '' };
+  var root = document.getElementById('admApp');
+
+  function admCall(fn) {
+    var args = Array.prototype.slice.call(arguments);
+    return call.apply(null, args).catch(function (e) {
+      if (/ADMIN_LOGIN_REQUIRED/.test(String(e))) { A.st.loggedIn = false; render(); toast('Session expired – please log in again'); }
+      throw e;
+    });
+  }
+  var I = function (n) { return typeof ic === 'function' ? ic(n) : ''; };
+  function pill(text, kind) { return '<span class="pill ' + (kind || '') + '">' + esc(text) + '</span>'; }
+  function table(head, rows) {
+    return '<div class="adm-tbl-wrap adm-scroll"><table class="adm-tbl"><thead><tr>' +
+      head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      (rows.length ? rows.join('') : '<tr><td colspan="' + head.length + '" class="muted">Nothing yet</td></tr>') + '</tbody></table></div>';
+  }
+
+  // ---------- Admin password re-check (protected actions) ----------
+  function askPass(title, note) {
+    return new Promise(function (done) {
+      var d = document.getElementById('admPassDlg');
+      if (!d) {
+        d = document.createElement('dialog'); d.id = 'admPassDlg';
+        d.innerHTML = '<div class="in"><div class="title" id="apT"></div><div class="hint" id="apN"></div>' +
+          '<input class="inp" id="apP" type="password" autocomplete="current-password" placeholder="Admin password">' +
+          '<div class="adm-row" style="justify-content:flex-end"><button class="btn" id="apNo">Cancel</button><button class="btn primary" id="apYes">Confirm</button></div></div>';
+        document.body.appendChild(d);
+      }
+      var fin = false, end = function (v) { if (fin) return; fin = true; try { d.close(); } catch (x) {} done(v); };
+      document.getElementById('apT').innerHTML = I('lock') + ' ' + esc(title || 'Admin password required');
+      document.getElementById('apN').textContent = note || 'This is a protected action. Enter the admin password again to continue.';
+      var inp = document.getElementById('apP'); inp.value = '';
+      document.getElementById('apNo').onclick = function () { end(null); };
+      document.getElementById('apYes').onclick = function () { if (inp.value) end(inp.value); else inp.focus(); };
+      inp.onkeydown = function (e) { if (e.key === 'Enter' && inp.value) end(inp.value); };
+      d.oncancel = function (e) { e.preventDefault(); end(null); };
+      d.showModal(); setTimeout(function () { inp.focus(); }, 50);
+    });
+  }
+  /** confirmBox2 (double confirm) + password */
+  function confirmPass(title, body, yesLabel) {
+    return confirmBox2(title, body, yesLabel).then(function (y) { return y ? askPass(title) : null; });
+  }
+
+  // ---------- login / setup ----------
+  function loginView() {
+    var setup = !A.st.hasPassword;
+    root.innerHTML =
+      '<div class="card adm-login">' +
+        '<div class="head"><div class="icon">' + I('shield') + '</div><div class="title">Admin ' + (setup ? 'setup' : 'sign in') + '<small>Protected area – admin password required</small></div></div>' +
+        (setup ? '<div class="hint">No admin password exists yet. Create the common admin password (min 6 characters). All admins will use this password.</div>' : '') +
+        '<div class="err" id="admErr" hidden></div>' +
+        '<label class="lbl">Email</label><input class="inp" id="admEmail" value="' + esc(A.st.email) + '" autocomplete="username">' +
+        '<label class="lbl">' + (setup ? 'New admin password' : 'Admin password') + '</label>' +
+        '<input class="inp" id="admPass" type="password" autocomplete="' + (setup ? 'new-password' : 'current-password') + '">' +
+        (setup ? '<label class="lbl">Confirm password</label><input class="inp" id="admPass2" type="password" autocomplete="new-password">' : '') +
+        '<button class="btn primary wide" id="admGo">' + (setup ? 'Create password & open' : 'Sign in') + '</button>' +
+      '</div>';
+    var err = function (m) { var e = document.getElementById('admErr'); e.textContent = m; e.hidden = !m; };
+    var go = function () {
+      var b = document.getElementById('admGo'); b.disabled = true;
+      var p = document.getElementById('admPass').value;
+      var pr;
+      if (setup) {
+        if (p !== document.getElementById('admPass2').value) { err('Passwords do not match'); b.disabled = false; return; }
+        pr = call('adminSetupPassword', p);
+      } else {
+        pr = call('adminLogin', document.getElementById('admEmail').value, p);
+      }
+      pr.then(function (st) { A.st = st; return loadData(); })
+        .catch(function (e) { err(String(e)); b.disabled = false; });
+    };
+    document.getElementById('admGo').onclick = go;
+    document.getElementById('admPass').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !setup) go(); });
+    document.getElementById('admPass').focus();
+  }
+
+  // ---------- panel ----------
+  function loadData() {
+    root.innerHTML = '<div class="center"><span class="spin"></span> Loading admin data…</div>';
+    return admCall('adminData').then(function (d) { A.data = d; render(); })
+      .catch(function (e) { if (A.st.loggedIn) root.innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+  }
+
+  function render() {
+    if (!A.st.loggedIn) return loginView();
+    if (!A.data) return loadData();
+    var tabs = [['users', 'users', 'Users'], ['access', 'sliders', 'Access'], ['tokens', 'key', 'Tokens'], ['safety', 'shield', 'Safety'], ['logs', 'list', 'Activity'], ['tokhist', 'history', 'Token history'], ['settings', 'settings', 'Settings']];
+    root.innerHTML =
+      '<div class="adm-row"><div class="adm-sub" id="admSub">' +
+        tabs.map(function (t) { return '<button data-t="' + t[0] + '" class="' + (A.tab === t[0] ? 'on' : '') + '">' + I(t[1]) + esc(t[2]) + '</button>'; }).join('') +
+      '</div><span style="margin-left:auto"></span>' +
+      '<button class="btn sm" id="admReload">' + I('refresh') + 'Refresh</button><button class="btn sm" id="admOut">' + I('logout') + 'Sign out</button></div>' +
+      '<div class="card" id="admBody"></div>';
+    document.getElementById('admSub').onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return; A.tab = b.getAttribute('data-t'); render();
+    };
+    document.getElementById('admReload').onclick = loadData;
+    document.getElementById('admOut').onclick = function () { call('adminLogout').then(function (st) { A.st = st; A.data = null; render(); }); };
+    ({ users: usersView, access: accessView, safety: safetyView, tokens: tokensView, logs: logsView, tokhist: tokHistView, settings: settingsView })[A.tab]();
+  }
+
+  function body(html) { document.getElementById('admBody').innerHTML = html; }
+
+  function usersView() {
+    var d = A.data;
+    body(
+      '<div class="title">Add user or admin</div>' +
+      '<div class="adm-row"><input class="inp" id="nuEmail" placeholder="name@gmail.com" autocomplete="off">' +
+      '<select class="adm-sel" id="nuRole"><option value="user">User</option><option value="admin">Admin</option></select>' +
+      '<button class="btn primary" id="nuAdd">Add</button></div>' +
+      '<div id="nuFeat"><div class="hint" style="margin:0 0 4px">Features for the new user (files are shared only for these):</div><div class="adm-row" style="gap:4px 14px">' +
+        (d.featureList || []).map(function (f) {
+          return '<label class="acc-opt"><input type="checkbox" data-nf="' + esc(f.id) + '"' + (f.id === 'dpp' ? '' : ' checked') + '> ' + esc(f.label) + '</label>';
+        }).join('') + '</div></div>' +
+      '<div class="hint"><b>Shared token:</b> "Allowed" users can work without their own token (the shared token is used). "Blocked" users must add their own token under Token. New users are blocked by default.</div><div class="hint">Users sign in with their own Google account – no separate password. Users only get Editor access to the files their features need: Batch OPS always; live sheets for Today / Lecture Push / NodePath; NodePath files for NodePath, Upload, Push Nodes and Push DPP; DPP files for DPP upload. Admins get every file. Changing a user\'s Access updates their file access automatically; "Sync files" does it again by hand.</div>' +
+      '<div class="title" style="margin-top:6px">All users (' + d.users.length + ')</div>' +
+      table(['Email', 'Role', 'Access', 'Shared token', 'Added by', 'Added at', ''], d.users.map(function (u) {
+        var other = u.role === 'admin' ? 'user' : 'admin';
+        var self = u.email === d.me;
+        var owner = u.email === d.owner;                // owner account is locked: no role change / remove
+        var lockedForMe = owner && !self;
+        return '<tr><td>' + esc(u.email) + (self ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + pill(u.role, u.role === 'admin' ? 'adm' : '') + (owner ? ' ' + pill('Owner', 'ok') : '') + '</td><td>' + accSummary(u) +
+          (u.role === 'admin' ? '' : ' <button class="btn sm" data-acc="' + esc(u.email) + '">Edit</button>') + '</td><td>' +
+          pill(u.sharedOk ? 'Allowed' : 'Blocked', u.sharedOk ? 'ok' : 'bad') + (lockedForMe ? '' : ' <button class="btn sm" data-shok="' + (u.sharedOk ? '0' : '1') + '" data-e="' + esc(u.email) + '">' + (u.sharedOk ? 'Block' : 'Allow') + '</button>') +
+          '</td><td>' + esc(u.addedBy || '') + '</td><td>' + esc(u.addedAt || '') +
+          '</td><td>' + (self || owner ? '' : '<button class="btn sm" data-role="' + other + '" data-e="' + esc(u.email) + '">Make ' + other + '</button> ') +
+          (owner ? '' : '<button class="btn sm" data-share="' + esc(u.email) + '">Sync files</button> ') +
+          (self || owner ? '' : '<button class="btn sm danger" data-rm="' + esc(u.email) + '">Remove</button>') + '</td></tr>';
+      }))
+    );
+    var nuRole = document.getElementById('nuRole');
+    nuRole.onchange = function () { document.getElementById('nuFeat').hidden = nuRole.value === 'admin'; };
+    document.getElementById('nuAdd').onclick = function () {
+      var em = document.getElementById('nuEmail').value.trim(), role = document.getElementById('nuRole').value;
+      if (!em) return;
+      var btn = document.getElementById('nuAdd');
+      var feats = Array.prototype.filter.call(document.querySelectorAll('input[data-nf]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-nf'); });
+      var labels = (d.featureList || []).filter(function (f) { return feats.indexOf(f.id) >= 0; }).map(function (f) { return f.label; });
+      var ask = confirmBox2('Add ' + em + ' as ' + role + '?', em + ' will be able to use the dashboard' + (role === 'admin' ? ' and the Admin panel, with every feature and Editor access to every file.' :
+          ' with these features:\n• ' + (labels.join('\n• ') || '(none)') + '\n\nEditor access is given only to the files these features need.'), 'Yes, add')
+        .then(function (y) { return !y ? null : (role === 'admin' ? askPass('Add a new admin') : ''); });
+      ask.then(function (pw) {
+      if (pw === null) return;
+      btn.disabled = true; btn.textContent = 'Adding + sharing…';
+      admCall('adminAddUser', em, role, pw, role === 'admin' ? null : feats).then(function (d) {
+        A.data = d; render();
+        confirmBox(em + ' added as ' + role, 'File access:\n' + (d.shareReport || []).join('\n'), null);
+      }).catch(function (e) {
+        btn.disabled = false; btn.textContent = 'Add';
+        confirmBox('Could not add ' + em, String(e).replace(/^Error:\s*/, '') + '\n\nClick Refresh to check whether the user was added before the error.', null);
+      });
+      });
+    };
+    document.getElementById('admBody').onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.getAttribute('data-acc')) { A.accFocus = b.getAttribute('data-acc'); A.tab = 'access'; render(); return; }
+      if (b.getAttribute('data-shok') !== null) {
+        var es2 = b.getAttribute('data-e'), allow = b.getAttribute('data-shok') === '1';
+        confirmBox2((allow ? 'Allow ' : 'Block ') + 'shared token for ' + es2 + '?', allow ? es2 + ' will be able to push without their own token (the shared token will be used).' : es2 + ' will have to add their own token under Token before pushing.', allow ? 'Yes, allow' : 'Yes, block').then(function (y) {
+          if (y) admCall('adminSetSharedOk', es2, allow).then(function (d) { A.data = d; toast(es2 + (allow ? ' can now use the shared token' : ' must now use their own token')); render(); })
+            .catch(function (e) { toast(String(e)); });
+        });
+        return;
+      }
+      if (b.getAttribute('data-share')) {
+        var es = b.getAttribute('data-share');
+        confirmBox2('Sync file access for ' + es + '?', es + ' will get Editor access to the files their features need, and access to the other working files (Batch OPS, live sheets, NodePath, DPP files) will be removed.', 'Yes, sync').then(function (y) {
+          if (!y) return;
+          b.disabled = true; b.textContent = 'Syncing…';
+          admCall('adminShareFiles', es).then(function (d) { A.data = d; render(); confirmBox('File access – ' + es, (d.shareReport || []).join('\n'), null); })
+            .catch(function (e) { toast(String(e)); b.disabled = false; b.textContent = 'Sync files'; });
+        });
+        return;
+      }
+      if (b.getAttribute('data-rm')) {
+        var em = b.getAttribute('data-rm');
+        confirmPass('Remove ' + em + '?', em + ' will no longer be able to use the dashboard, and their access to Batch OPS, the 6 live sheets, the NodePath files and the DPP files will be removed.', 'Yes, remove').then(function (pw) {
+          if (pw !== null) admCall('adminRemoveUser', em, pw).then(function (d) { A.data = d; render(); confirmBox(em + ' removed', 'File access:\n' + (d.shareReport || []).join('\n'), null); }).catch(function (e) { toast(String(e)); });
+        });
+      } else if (b.getAttribute('data-role')) {
+        var em2 = b.getAttribute('data-e'), r = b.getAttribute('data-role');
+        confirmBox2('Make ' + em2 + ' ' + r + '?', r === 'admin' ? em2 + ' will be able to open the Admin panel (with the admin password), add/remove users and reset tokens.' : em2 + ' will lose access to the Admin panel.', 'Yes, make ' + r).then(function (y) { return y ? askPass('Make ' + em2 + ' ' + r) : null; }).then(function (pw) {
+          if (pw !== null) admCall('adminSetRole', em2, r, pw).then(function (d) { A.data = d; render(); confirmBox(em2 + ' is now ' + r, 'File access:\n' + (d.shareReport || []).join('\n'), null); }).catch(function (e) { toast(String(e)); });
+        });
+      }
+    };
+  }
+
+  // ---------- feature access ----------
+  function accSummary(u) {
+    var all = (A.data.featureList || []).length, n = (u.features || []).length;
+    if (u.role === 'admin') return pill('All (admin)', 'adm');
+    return pill(n === all ? 'All ' + n + '/' + all : n + '/' + all, n === all ? 'ok' : (n ? '' : 'bad'));
+  }
+  function accLabel(id) { var f = (A.data.featureList || []).filter(function (x) { return x.id === id; })[0]; return f ? f.label : id; }
+  function accessView() {
+    var d = A.data, F = d.featureList || [];
+    var users = d.users.filter(function (u) { return u.role !== 'admin'; });
+    var admins = d.users.filter(function (u) { return u.role === 'admin'; });
+    body(
+      '<div class="title">Feature access</div>' +
+      '<div class="hint">Choose which parts of the dashboard each user can use. Hidden features are also blocked on the server. Admins always have every feature. The push buttons and PDF update need <b>Lecture Push</b> to be on. Every change is saved in Activity logs.</div>' +
+      (users.length ? '<div class="acc-list">' + users.map(function (u) {
+        var on = u.features || [];
+        var lecOn = on.indexOf('lecture') >= 0;
+        return '<div class="acc-card' + (A.accFocus === u.email ? ' focus' : '') + '" data-email="' + esc(u.email) + '">' +
+          '<div class="who">' + esc(u.email) + '</div>' +
+          '<div class="muted" style="font-size:12px">' + accSummary(u) + '</div>' +
+          F.map(function (f) {
+            var dis = f.needs && !lecOn;
+            return '<label class="acc-opt' + (f.needs ? ' sub' : '') + (dis ? ' off' : '') + '"><input type="checkbox" data-f="' + esc(f.id) + '"' +
+              (on.indexOf(f.id) >= 0 ? ' checked' : '') + (dis ? ' disabled' : '') + (f.needs ? ' data-needs="' + esc(f.needs) + '"' : '') + '> ' + esc(f.label) + '</label>';
+          }).join('') +
+          '<div class="acc-btns"><button class="btn sm" data-all="1">Select all</button><button class="btn sm" data-all="0">Select none</button>' +
+          '<button class="btn sm primary" data-save="1" disabled style="margin-left:auto">Save access</button></div>' +
+        '</div>';
+      }).join('') + '</div>' : '<div class="muted">No users yet (only admins). Add a user under Users.</div>') +
+      (admins.length ? '<div class="hint" style="margin-top:10px">Admins (all features): ' + admins.map(function (u) { return esc(u.email); }).join(', ') + '</div>' : '')
+    );
+    var focus = document.querySelector('.acc-card.focus'); if (focus) focus.scrollIntoView({ block: 'center' });
+    var host = document.getElementById('admBody');
+    function cardState(card) {
+      return Array.prototype.filter.call(card.querySelectorAll('input[data-f]'), function (x) { return x.checked; })
+        .map(function (x) { return x.getAttribute('data-f'); });
+    }
+    function refresh(card) {
+      var lec = card.querySelector('input[data-f="lecture"]');
+      Array.prototype.forEach.call(card.querySelectorAll('input[data-needs]'), function (x) {
+        x.disabled = !lec.checked; x.parentNode.classList.toggle('off', !lec.checked);
+      });
+      var u = d.users.filter(function (x) { return x.email === card.getAttribute('data-email'); })[0];
+      var now = cardState(card).filter(function (id) { var i = card.querySelector('input[data-f="' + id + '"]'); return !i.disabled; }).sort().join(',');
+      card.querySelector('[data-save]').disabled = now === (u.features || []).slice().sort().join(',');
+    }
+    host.onchange = function (e) { var c = e.target.closest('.acc-card'); if (c) refresh(c); };
+    host.onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var card = b.closest('.acc-card'); if (!card) return;
+      if (b.getAttribute('data-all') !== null) {
+        var v = b.getAttribute('data-all') === '1';
+        Array.prototype.forEach.call(card.querySelectorAll('input[data-f]'), function (x) { x.checked = v; });
+        refresh(card); return;
+      }
+      if (b.getAttribute('data-save')) {
+        var em = card.getAttribute('data-email');
+        var u = d.users.filter(function (x) { return x.email === em; })[0];
+        var list = cardState(card).filter(function (id) { return !card.querySelector('input[data-f="' + id + '"]').disabled; });
+        var before = u.features || [];
+        var add = list.filter(function (x) { return before.indexOf(x) < 0; }).map(accLabel);
+        var rem = before.filter(function (x) { return list.indexOf(x) < 0; }).map(accLabel);
+        var msg = (add.length ? 'Allow:\n• ' + add.join('\n• ') + '\n\n' : '') + (rem.length ? 'Block:\n• ' + rem.join('\n• ') + '\n\n' : '') +
+          (list.length ? '' : 'Warning: ' + em + ' will not be able to use any feature (they can still open the page).\n\n') +
+          'File access is updated too: Editor access only to the files these features need.\n\nThe change applies the next time ' + em + ' opens or reloads the dashboard.';
+        confirmBox2('Change access for ' + em + '?', msg, 'Yes, save').then(function (y) {
+          if (!y) return;
+          b.disabled = true; b.textContent = 'Saving + updating files…';
+          admCall('adminSetFeatures', em, list).then(function (nd) { A.data = nd; A.accFocus = em; render(); confirmBox('Access saved – ' + em, 'File access:\n' + (nd.shareReport || []).join('\n'), null); })
+            .catch(function (e2) { toast(String(e2)); b.disabled = false; b.textContent = 'Save access'; });
+        });
+      }
+    };
+  }
+
+  // ---------- 🛡️ SAFETY ----------
+  function safetyView() {
+    var d = A.data, S = d.safety || {}, f = S.freeze, rate = (S.rate || {}).perHour, bk = S.backup || {}, last = bk.last;
+    var rp = d.restorePoints || [];
+    body(
+      (S.standalone ? '' :
+        '<div class="safe-card warnbox"><div class="title">' + I('alert') + 'Script is still inside the Batch OPS sheet</div>' +
+        '<div class="hint" style="color:inherit">Anyone with Editor access to Batch OPS can open Extensions → Apps Script and see or change the code, the shared token and the admin password hash. Move the script to a separate (standalone) project to hide it – steps are in the setup guide.</div></div>') +
+
+      '<div class="safe-card' + (f ? ' alarm' : '') + '"><div class="title">' + I('stop') + 'Emergency stop</div>' +
+      (f ? '<div><b>ON</b> – all pushes, PDF updates, NodePath updates and uploads are blocked for everyone.<br>Turned on by ' + esc(f.by) + ' at ' + esc(f.at) + (f.reason ? '<br>Reason: ' + esc(f.reason) : '') + '</div>' +
+           '<div class="adm-row"><button class="btn primary" id="sfOff">' + I('check') + 'Turn OFF – allow pushes again</button></div>'
+         : '<div class="hint">Use this if a token leaks or wrong data is going to Internal Metrics. Everyone is blocked immediately (admins too) until you turn it off. Reading data still works.</div>' +
+           '<div class="adm-row"><input class="inp" id="sfReason" placeholder="Reason (shown to users)"><button class="btn danger" id="sfOn">' + I('stop') + 'Turn ON emergency stop</button></div>') +
+      '</div>' +
+
+      '<div class="safe-card"><div class="title">' + I('timer') + 'Push limit</div>' +
+      '<div class="hint">Maximum real pushes (after "Yes, push") per user per hour. Admins have no limit. 0 = no limit. Current: <b>' + (rate ? rate + ' per hour' : 'off') + '</b></div>' +
+      '<div class="adm-row"><input class="inp" id="sfRate" type="number" min="0" max="1000" value="' + esc(rate || 0) + '" style="max-width:140px"><button class="btn" id="sfRateSave">Save limit</button></div></div>' +
+
+      '<div class="safe-card"><div class="title">' + I('undo') + 'Restore points</div>' +
+      '<div class="hint">Before every push the old Internal Metrics values are saved here. Restore puts those old values back (lecture times, PDF, notes, nodes, DPP). Sheet changes are not undone – use the sheet\'s Version history for those. A point edited by hand is marked as blocked and cannot be used.</div>' +
+      (rp.length ? '<div class="safe-list">' + rp.map(function (x, i) {
+        return '<div class="safe-item"><div class="grow"><b>' + esc(x.kind.replace('PUSH_', '')) + '</b> · ' + esc(x.target) + '<br><span class="muted">' + esc(x.time) + ' · ' + esc(x.email) + ' · ' + esc((x.labels || []).join(', ')) + '</span></div>' +
+          (x.intact ? '<button class="btn sm" data-rp="' + i + '">' + I('undo') + 'Restore</button>' : pill('Edited – blocked', 'bad')) + '</div>';
+      }).join('') + '</div>' : '<div class="muted">No restore points yet (they are created on the next push).</div>') +
+      '</div>' +
+
+      '<div class="safe-card"><div class="title">' + I('save') + 'Daily backup</div>' +
+      '<div class="hint">Copies Batch OPS, the 6 live sheets and the 2 NodePath files into the Drive folder "Batch OPS Backups" of the admin who turns it on. Copies older than ' + esc(bk.keepDays || 7) + ' days are deleted. Daily backup: <b>' + (bk.scheduled ? 'ON (around ' + esc(bk.hour) + ':00)' : 'OFF') + '</b></div>' +
+      (last ? '<div class="hint">Last backup: <b>' + esc(last.at) + '</b> by ' + esc(last.by) + ' – ' + (last.ok ? pill('OK', 'ok') : pill('PARTIAL', 'bad')) + (last.folder ? ' · <a href="' + esc(last.folder) + '" target="_blank" rel="noopener">open folder</a>' : '') + '</div>' : '<div class="hint">No backup yet.</div>') +
+      '<div class="adm-row"><button class="btn" id="sfBkNow">' + I('save') + 'Back up now</button><button class="btn" id="sfBkSch">' + (bk.scheduled ? 'Turn OFF daily backup' : 'Turn ON daily backup') + '</button></div></div>' +
+
+      '<div class="safe-card"><div class="title">' + I('lock') + 'Log check</div>' +
+      '<div class="hint">Every Activity log row has a secret check code. This finds rows that were edited or deleted by hand in the Logs tab. (Rows written before this update are skipped.)</div>' +
+      '<div class="adm-row"><button class="btn" id="sfVerify">' + I('search') + 'Verify logs</button></div><div id="sfVerifyOut"></div></div>'
+    );
+    var on = document.getElementById('sfOn'), off = document.getElementById('sfOff');
+    if (on) on.onclick = function () {
+      var reason = document.getElementById('sfReason').value.trim();
+      confirmPass('Turn ON emergency stop?', 'All pushes, PDF updates, NodePath updates and uploads will be blocked for EVERYONE until an admin turns it off.' + (reason ? '\n\nReason: ' + reason : ''), 'Yes, stop everything').then(function (pw) {
+        if (pw !== null) admCall('adminSetFreeze', true, reason, pw).then(function (nd) { A.data = nd; toast('Emergency stop is ON'); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+    if (off) off.onclick = function () {
+      confirmPass('Turn OFF emergency stop?', 'Pushes will be allowed again for all users.', 'Yes, allow pushes').then(function (pw) {
+        if (pw !== null) admCall('adminSetFreeze', false, '', pw).then(function (nd) { A.data = nd; toast('Emergency stop is OFF'); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+    document.getElementById('sfRateSave').onclick = function () {
+      var n = Math.max(0, Math.floor(Number(document.getElementById('sfRate').value) || 0));
+      confirmBox2('Set push limit?', n ? 'Each user (not admins) can push at most ' + n + ' times per hour.' : 'The push limit will be turned off.', 'Yes, save').then(function (y) {
+        if (y) admCall('adminSetRate', n).then(function (nd) { A.data = nd; toast('Push limit saved'); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+    document.getElementById('sfBkNow').onclick = function () {
+      var b = this;
+      confirmBox2('Back up now?', 'Copies of Batch OPS, the 6 live sheets and the 2 NodePath files will be made in your Drive folder "Batch OPS Backups". This can take a minute.', 'Yes, back up').then(function (y) {
+        if (!y) return;
+        b.disabled = true; b.textContent = 'Backing up…';
+        admCall('adminBackupNow').then(function (nd) {
+          A.data = nd; render();
+          var r = nd.backupReport || {};
+          confirmBox('Backup ' + (r.ok ? 'done' : 'finished with problems'), (r.lines || []).join('\n') + (r.removed ? '\n\nOld backups removed: ' + r.removed : ''), null);
+        }).catch(function (e) { toast(String(e)); b.disabled = false; b.innerHTML = I('save') + 'Back up now'; });
+      });
+    };
+    document.getElementById('sfBkSch').onclick = function () {
+      var turnOn = !bk.scheduled;
+      confirmBox2(turnOn ? 'Turn ON daily backup?' : 'Turn OFF daily backup?', turnOn ? 'A backup will run every day around ' + (bk.hour || 2) + ':00 using YOUR Google account. Copies go to your Drive and are kept ' + (bk.keepDays || 7) + ' days.' : 'Automatic daily backups will stop.', turnOn ? 'Yes, turn on' : 'Yes, turn off').then(function (y) {
+        if (y) admCall('adminBackupSchedule', turnOn).then(function (nd) { A.data = nd; toast('Daily backup ' + (turnOn ? 'ON' : 'OFF') + ''); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+    document.getElementById('sfVerify').onclick = function () {
+      var b = this; b.disabled = true; b.textContent = 'Checking…';
+      admCall('adminVerifyLogs').then(function (r) {
+        b.disabled = false; b.innerHTML = I('search') + 'Verify logs';
+        document.getElementById('sfVerifyOut').innerHTML = r.ok
+          ? '<div class="safe-item">' + pill('OK', 'ok') + ' <span class="grow">' + r.checked + ' rows checked, nothing edited or deleted.' + (r.old ? ' (' + r.old + ' older rows without a check code were skipped.)' : '') + '</span></div>'
+          : '<div class="uperr">' + esc(r.problems.length + ' problem(s) found:\n' + r.problems.join('\n')) + '</div>';
+      }).catch(function (e) { b.disabled = false; b.innerHTML = I('search') + 'Verify logs'; toast(String(e)); });
+    };
+    document.getElementById('admBody').onclick = function (e) {
+      var b = e.target.closest('button[data-rp]'); if (!b) return;
+      var x = rp[Number(b.getAttribute('data-rp'))];
+      confirmPass('Restore ' + x.target + '?', 'Internal Metrics will get back the values from BEFORE this push:\n\n' + x.kind.replace('PUSH_', '') + ' · ' + x.target + '\nPushed ' + x.time + ' by ' + x.email + '\n\nWill restore:\n• ' + (x.labels || []).join('\n• ') + '\n\nAny change made after that push will be overwritten. Sheet changes are not undone.', 'Yes, restore').then(function (pw) {
+        if (pw === null) return;
+        b.disabled = true; b.textContent = 'Restoring…';
+        admCall('adminRestore', x.id, pw).then(function (nd) {
+          A.data = nd; render();
+          confirmBox('Restore – ' + x.target, (nd.restoreReport || []).join('\n'), null);
+        }).catch(function (e2) { toast(String(e2)); b.disabled = false; b.innerHTML = I('undo') + 'Restore'; });
+      });
+    };
+  }
+
+  function tokensView() {
+    var d = A.data;
+    body(
+      '<div class="title">Shared token</div>' +
+      '<div class="hint">Used by anyone who has not saved their own token. Current: ' + (d.shared.set ? '<b>…' + esc(d.shared.tail) + '</b>' : '<b>not set</b>') + '</div>' +
+      '<div class="adm-row"><input class="inp mono" id="shTok" type="password" placeholder="Paste new shared avtoken"><button class="btn primary" id="shSave">Save & test</button></div>' +
+      '<div class="title" style="margin-top:6px">User tokens</div>' +
+      '<div class="hint">Only the last 4 characters are shown. "Checked" updates when the user opens the dashboard. Reset forces the user to enter a new token.</div>' +
+      table(['Email', 'Using', 'Last 4', 'Status', 'Saved', 'Checked', ''], d.tokens.map(function (t) {
+        var st = t.status || 'never checked';
+        return '<tr><td>' + esc(t.email) + '</td><td>' + esc(t.source || '—') + '</td><td>' + (t.tail ? '…' + esc(t.tail) : '—') + '</td><td>' +
+          pill(st, st === 'valid' ? 'ok' : (/expired|reset|error/.test(st) ? 'bad' : '')) + '</td><td>' + esc(t.savedAt || '') + '</td><td>' + esc(t.checkedAt || '') +
+          '</td><td>' + (t.email === d.owner && t.email !== d.me ? '' : '<button class="btn sm danger" data-reset="' + esc(t.email) + '">Reset</button>') + '</td></tr>';
+      }))
+    );
+    document.getElementById('shSave').onclick = function () {
+      var t = document.getElementById('shTok').value.trim(); if (!t) return;
+      confirmPass('Replace the shared token?', 'Everyone allowed to use the shared token will start using this new token (…' + t.slice(-4) + ').', 'Yes, replace').then(function (pw) {
+        if (pw !== null) admCall('adminSetSharedToken', t, pw).then(function (d) { A.data = d; toast('Shared token saved'); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+    document.getElementById('admBody').onclick = function (e) {
+      var b = e.target.closest('button[data-reset]'); if (!b) return;
+      var em = b.getAttribute('data-reset');
+      confirmBox2('Reset token of ' + em + '?', 'Their own token will stop working until they enter a new one under Token. This is recorded in Token history.', 'Yes, reset').then(function (y) {
+        if (y) admCall('adminResetUserToken', em).then(function (d) { A.data = d; toast('Token reset for ' + em); render(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+  }
+
+  function logsView() {
+    var rows = A.data.logs;     // [Time, Email, Action, Target, Result, Token, Source, Details]
+    var actions = {}; rows.forEach(function (r) { actions[r[2]] = 1; });
+    var f = A.logFilter.toLowerCase(), act = A.logAction;
+    var shown = rows.filter(function (r) {
+      return (!act || r[2] === act) && (!f || r.join(' ').toLowerCase().indexOf(f) !== -1);
+    });
+    body(
+      '<div class="adm-row"><input class="inp" id="lgF" placeholder="Search email, lecture code, token …" value="' + esc(A.logFilter) + '">' +
+      '<select class="adm-sel" id="lgA"><option value="">All actions</option>' +
+        Object.keys(actions).sort().map(function (a) { return '<option' + (a === act ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="hint">Latest ' + rows.length + ' entries (newest first). Full log is in the hidden "Logs" tab of Batch OPS.</div>' +
+      table(['Time', 'Email', 'Action', 'Target', 'Result', 'Token', 'Source', 'Details'], shown.map(function (r) {
+        return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td><td>' + esc(r[3]) + '</td><td>' +
+          pill(r[4], r[4] === 'OK' ? 'ok' : (r[4] === 'FAIL' ? 'bad' : '')) + '</td><td class="mono">' + esc(r[5]) + '</td><td>' + esc(r[6]) +
+          '</td><td class="wrap">' + esc(r[7]) + '</td></tr>';
+      }))
+    );
+    var fi = document.getElementById('lgF');
+    fi.oninput = function () { A.logFilter = fi.value; var pos = fi.selectionStart; logsView(); var n = document.getElementById('lgF'); n.focus(); n.setSelectionRange(pos, pos); };
+    document.getElementById('lgA').onchange = function () { A.logAction = this.value; logsView(); };
+  }
+
+  function tokHistView() {
+    body(
+      '<div class="hint">Every token save, removal and admin reset (newest first). Rows are only added, never changed.</div>' +
+      table(['Time', 'Done by', 'Token of', 'Action', 'Old', 'New', 'Note'], A.data.tokenHistory.map(function (r) {
+        return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>';
+      }))
+    );
+  }
+
+  function settingsView() {
+    body(
+      '<div class="title">Change admin password</div>' +
+      '<div class="hint">This is the common password for all admins.</div>' +
+      '<label class="lbl">Current password</label><input class="inp" id="cpOld" type="password">' +
+      '<label class="lbl">New password</label><input class="inp" id="cpNew" type="password">' +
+      '<label class="lbl">Confirm new password</label><input class="inp" id="cpNew2" type="password">' +
+      '<button class="btn primary" id="cpGo">Change password</button>' +
+      '<div class="hint">Forgot the password? In Apps Script, open Admin.gs and run <b>adminResetPassword</b>. The next admin to open this tab creates a new one.</div>'
+    );
+    document.getElementById('cpGo').onclick = function () {
+      var n = document.getElementById('cpNew').value;
+      if (n !== document.getElementById('cpNew2').value) { toast('New passwords do not match'); return; }
+      var old = document.getElementById('cpOld').value;
+      confirmBox2('Change admin password?', 'All admins will need the new password to open the Admin panel.', 'Yes, change').then(function (y) {
+        if (y) admCall('adminChangePassword', old, n)
+          .then(function () { toast('Admin password changed'); settingsView(); }).catch(function (e) { toast(String(e)); });
+      });
+    };
+  }
+
+  call('adminStatus').then(function (st) { A.st = st; render(); })
+    .catch(function (e) { root.innerHTML = '<div class="err">' + esc(e) + '</div>'; });
+})();
+</script>

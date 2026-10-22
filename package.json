@@ -1,0 +1,7 @@
+{
+  "name": "batch-ops",
+  "private": true,
+  "description": "Batch OPS dashboard (Arivihan NEET Dropper 2027) on Vercel",
+  "engines": { "node": "22.x" },
+  "scripts": { "test": "node test/run.js" }
+}
