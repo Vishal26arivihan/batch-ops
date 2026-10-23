@@ -69,6 +69,43 @@ function webDppUpload(key) {
   }
 }
 
+/**
+ * PDF update: same as Code.gs, but the Automation PDF cell is read again for a few seconds.
+ * That cell is a formula reading the live sheet (another file); the Sheets API returns it before Google has recalculated it.
+ */
+function webPdfUpdate(lang, code, keyOrUrl) {
+  assertOwner_("pdf_update");
+  assertNotFrozen_();
+  checkCodeLang_(code, lang);
+  const url = pdfUrlFromKey_(keyOrUrl);
+  if (!url) throw new Error("PDF key or URL is empty");
+  const pc = pdfCheck_(url);
+  if (pc.ok === false) throw new Error("BLOCKED – this PDF link does not open (HTTP " + pc.code + "):\n" + url + "\nCheck the key or upload the PDF first. The sheet was not changed.");
+  const L = livePdfLocate_(code);
+  const wrote = [], skipped = [];
+  L.cols.forEach((ci, k) => {
+    const r = L.tab.getRange(L.row, ci + 1);
+    if (r.getFormula()) { skipped.push(L.names[k]); return; }
+    r.setValue(url); wrote.push(L.names[k]);
+  });
+  SpreadsheetApp.flush();
+  logAction_("PDF_UPDATE", L.chapterCode, wrote.length ? "OK" : "FAIL", url + " → " + L.fileName + " row " + L.row);
+
+  const p = lecCfg_(lang).p, sh = autoSheet_();
+  const sameLecture = String(sh.getRange(p.code + p.row).getDisplayValue()).toUpperCase().indexOf(L.chapterCode) === 0;
+  let sheetPdf = sh.getRange(p.pdf + p.row).getDisplayValue().trim();
+  for (let i = 0; sameLecture && wrote.length && sheetPdf !== url && i < 5; i++) {      // up to ~8 s
+    Utilities.sleep(1500);
+    sheetPdf = __refresh(sh).getRange(p.pdf + p.row).getDisplayValue().trim();
+  }
+  return {
+    url: url, where: L.fileName + " / " + L.tabName + " / row " + L.row,
+    wrote: wrote, skipped: skipped,
+    automationCell: p.pdf + p.row, automationPdf: sheetPdf,
+    matches: sameLecture && sheetPdf === url, sameLecture: sameLecture
+  };
+}
+
 /** Vercel can return at most ~4.5 MB per call, so the base image is limited to 3 MB. */
 function webThumbFetch(url) {
   assertOwner_("thumbnail");
