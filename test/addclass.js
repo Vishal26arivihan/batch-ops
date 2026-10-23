@@ -80,6 +80,31 @@ const grid = (book, tab) => G.BOOKS[book].sheets.find(s => s.title === tab).grid
   try { await call('webAddClass', ['PHYHIN', form]); } catch (e) { err = e.message; }
   ok('second add with the same code is blocked', /already exists/.test(err), err);
 
+  // ---------- Undo ----------
+  const recent = await call('webAddClassRecent', []);
+  ok('undo: class is in the recent list', recent[0] && recent[0].code === C(5) && recent[0].micro && recent[0].posStep === 1, recent);
+  const up = await call('webAddClassUndoPlan', [C(5)]);
+  ok('undo plan: allowed, 4 steps', !up.blocks.length && up.lines.length === 4, up);
+  const u = await call('webAddClassUndo', [C(5)]);
+  ok('undo: all steps OK', u.ok, u.steps);
+  const ch2 = grid(LIVE, 'Chapters');
+  ok('undo: chapters back to 4 lectures', ch2.slice(1).map(x => x[0]).join(',') === [1, 2, 3, 4].map(C).join(','), ch2.map(x => x[0]));
+  ok('undo: position back to 1..4', ch2.slice(1, 5).map(x => Number(x[10])).join(',') === '1,2,3,4', ch2.map(x => x[10]));
+  ok('undo: microlecture tab deleted, old one kept', !G.BOOKS[LIVE].sheets.some(s => s.title === C(5) + 'Microlecture') && G.BOOKS[LIVE].sheets.some(s => s.title === C(2) + 'Microlecture'));
+  const np2 = grid(NP, 'PHY PATH').slice(1);
+  ok('undo: nodepath rows gone, 12 rows renumbered', np2.length === 12 && !np2.some(x => x[3] === C(5)) && np2.map(x => Number(x[0])).join(',') === Array.from({ length: 12 }, (_, i) => 1001 + i).join(','), np2.map(x => x[0] + ' ' + x[3]));
+  err = '';
+  try { await call('webAddClassUndo', [C(5)]); } catch (e) { err = e.message; }
+  ok('undo twice is blocked', /already undone/.test(err), err);
+
+  // undo is blocked once the class was pushed
+  const r2 = await call('webAddClass', ['PHYHIN', Object.assign({}, form, { code: C(6), afterCode: C(2) })]);
+  ok('add again (LIVE6)', r2.ok, r2.steps);
+  G.BOOKS['191KXHslzMCz22dBD3XW5cKEqP1pmGZsbmcPgGIf_fNY'].sheets.find(s => s.title === 'Logs').grid
+    .push(['24/10/2026 10:00:00', O, 'PUSH_DASHBOARD', C(6) + 'ML1', 'OK'].map(v => ({ raw: v, f: null, disp: v })));
+  const up2 = await call('webAddClassUndoPlan', [C(6)]);
+  ok('undo blocked after a push', up2.blocks.length === 1 && /pushed/.test(up2.blocks[0]), up2.blocks);
+
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

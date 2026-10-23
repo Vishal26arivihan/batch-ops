@@ -11,7 +11,7 @@ const ALLOWED = new Set([
   'webUploadInfo', 'webUploadNow', 'webUploadSetFlag', 'webUploadHistory',
   'webDppList', 'webDppSetFlags', 'webDppSetSchedule', 'webDppUpload', 'webClearCache',
   'webThumbInfo', 'webThumbFetch', 'webThumbSaveLink', 'webFiles',
-  'webAddClassInfo', 'webAddClassPlan', 'webAddClass',
+  'webAddClassInfo', 'webAddClassPlan', 'webAddClass', 'webAddClassRecent', 'webAddClassUndoPlan', 'webAddClassUndo',
   'adminUiHtml', 'adminStatus', 'adminSetupPassword', 'adminLogin', 'adminLogout', 'adminChangePassword', 'adminData',
   'adminAddUser', 'adminRemoveUser', 'adminSetRole', 'adminSetFeatures', 'adminShareFiles', 'adminResetUserToken',
   'adminSetSharedOk', 'adminSetSharedToken', 'adminSetFreeze', 'adminSetRate', 'adminRestore', 'adminVerifyLogs',

@@ -363,6 +363,7 @@
       <button class="btn" id="tdToday">Today</button>
       <button class="btn" id="tdReload"><i data-ic="refresh"></i>Refresh</button>
       <button class="btn primary" id="tdAdd" hidden><i data-ic="plus"></i>Add class</button>
+      <button class="btn" id="tdUndo" hidden><i data-ic="eraser"></i>Undo add</button>
       <div class="tabs tdfilter" id="tdFilter">
         <button data-f="pending" class="on">Pending</button>
         <button data-f="all">All</button>
@@ -644,6 +645,15 @@
       <button class="btn" id="acNo">Cancel</button>
       <button class="btn primary" id="acYes">Add to sheet</button>
     </div>
+  </div>
+</dialog>
+<dialog id="acuDlg">
+  <div class="dlg" style="overflow:auto">
+    <h3>Undo add class</h3>
+    <div class="hint" style="margin:0">Classes added from the dashboard (newest first). Undo deletes the live sheet row, the Microlecture tab (if it has no data) and the NodePath rows. Not possible once the class was pushed to Internal Metrics or is RECORDED.</div>
+    <div id="acuList" class="log"></div>
+    <div class="err" id="acuErr" hidden></div>
+    <div class="row"><button class="btn" id="acuClose">Close</button></div>
   </div>
 </dialog>
 <div id="toast"></div>
@@ -1315,7 +1325,7 @@
     FEAT = Array.isArray(list) ? list : null;      // older server that does not send features = show everything
     var navBtn = function (v) { return document.querySelector('#nav [data-v="' + v + '"]'); };
     ['today', 'lec', 'np', 'dpp', 'thumb', 'files'].forEach(function (v) { navBtn(v).hidden = !viewOk(v); });
-    $('tdAdd').hidden = !can('add_class');
+    $('tdAdd').hidden = $('tdUndo').hidden = !can('add_class');
     var pushMap = { dashboard: 'push_dash', nodes: 'push_nodes', dpp: 'push_dpp' }, anyPush = false;
     Array.prototype.forEach.call(document.querySelectorAll('[data-push]'), function (b) {
       var k = b.getAttribute('data-push');
@@ -1818,6 +1828,44 @@
       });
     }).catch(function (e) { $('acErr').textContent = String(e).replace(/^Error:\s*/, ''); $('acErr').hidden = false; })
       .then(function () { busy(''); });
+  };
+
+  // Undo: list of classes added from the dashboard
+  function acuLoad() {
+    $('acuErr').hidden = true;
+    $('acuList').innerHTML = '<div class="center"><span class="spin"></span> Loading…</div>';
+    call('webAddClassRecent').then(function (list) {
+      $('acuList').innerHTML = list.length ? list.map(function (r) {
+        return '<div class="entry' + (r.undone ? '' : ' ok') + '"><b>' + esc(r.code) + ' · ' + esc(r.title || '') + '</b>' +
+          esc('Class date ' + r.date + ' · added ' + r.at + ' by ' + r.by) +
+          (r.undone ? '<div class="muted">Undone ' + esc(r.undone) + '</div>'
+                    : '<div style="margin-top:6px"><button class="btn sm danger" data-undo="' + esc(r.code) + '">Undo</button></div>') + '</div>';
+      }).join('') : '<div class="muted">No class was added from the dashboard yet.</div>';
+    }).catch(function (e) { $('acuList').innerHTML = ''; $('acuErr').textContent = e; $('acuErr').hidden = false; });
+  }
+  $('tdUndo').onclick = function () { $('acuDlg').showModal(); acuLoad(); };
+  $('acuClose').onclick = function () { $('acuDlg').close(); };
+  $('acuList').onclick = function (ev) {
+    var b = ev.target.closest('[data-undo]');
+    if (!b) return;
+    var code = b.getAttribute('data-undo');
+    b.disabled = true; b.textContent = 'Checking…';
+    call('webAddClassUndoPlan', code).then(function (p) {
+      if (p.blocks.length) return confirmBox('Undo not possible', code + '\n\n' + p.blocks.join('\n'), null);
+      var np = p.nodepath || {};
+      var body = p.lines.join('\n') + (np.error ? '\n\n⚠️ NodePath preview failed: ' + np.error
+        : (np.lines && np.lines.length ? '\n\nNodePath – other pending changes of this subject (applied too):\n' + np.lines.join('\n') : ''));
+      return confirmBox2('Undo add class ' + code + '?', body, 'Yes, undo').then(function (y) {
+        if (!y) return;
+        b.textContent = 'Undoing…';
+        return call('webAddClassUndo', code).then(function (r) {
+          confirmBox(r.ok ? 'Undo done' : 'Undo done – check the warnings', r.steps.join('\n'), null);
+          toast(r.ok ? 'Undo done: ' + code : 'Undo done with warnings');
+          tdLoad(r.date, true);
+        });
+      });
+    }).catch(function (e) { $('acuErr').textContent = String(e).replace(/^Error:\s*/, ''); $('acuErr').hidden = false; })
+      .then(function () { if ($('acuDlg').open) acuLoad(); });
   };
   $('tdToday').onclick = function () { $('tdDate').value = ''; tdLoad(''); };
   $('tdPrev').onclick = function () { var d = tdShift(-1); if (d) tdLoad(d); };

@@ -2621,7 +2621,7 @@ function webAddClass(key, d) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw new Error("Another update is running, please try again shortly.");
   const steps = [];
-  let ok = true, p = null, T = null, inserted = false;
+  let ok = true, p = null, T = null, inserted = false, microCreated = false;
   try {
     T = acTab_(key);
     p = acPlan_(T, d);
@@ -2682,6 +2682,7 @@ function webAddClass(key, d) {
           mt.getRange(1, 1, 2, 1).setValues([[BACKUP_KEY_HEADER], [p.code + CFG.ML_SUFFIX]]);
         }
         SpreadsheetApp.flush();
+        microCreated = true;
         steps.push("✓ Microlecture tab " + p.microTab + " created" + (tpl ? " (layout of " + p.microTpl + ")" : ""));
       }
     } catch (e) { ok = false; steps.push("⚠️ Microlecture tab not created: " + (e.message || e) + " – create " + p.microTab + " by hand."); }
@@ -2694,12 +2695,137 @@ function webAddClass(key, d) {
     } catch (e) { ok = false; steps.push("⚠️ NodePath not updated: " + (e.message || e) + " – run NodePath update for " + p.node.label + "."); }
 
     cacheDel_(["td_" + key + "_" + p.date, "np_" + p.node.key]);
+    acRecordAdd_({ code: p.code, key: key, title: p.title, date: p.date, row: p.newRow, at: admNow_(),
+                   by: (Session.getActiveUser().getEmail() || "").toLowerCase(), micro: microCreated,
+                   posStep: p.pos.value !== "" && p.pos.shift ? p.pos.step : 0 });
     logAction_("ADD_CLASS", p.code, ok ? "OK" : "PARTIAL", acSummary_(T, p).concat(steps).join("\n"));
     return { ok: ok, code: p.code, row: p.newRow, date: p.date, steps: steps };
   } catch (e) {
     if (inserted) {                                        // the Chapters sheet was changed – record what happened
       if (!steps.length) steps.push("⚠️ an empty row may have been inserted at row " + p.newRow + " of " + T.f.name + " – check the sheet");
       logAction_("ADD_CLASS", p.code, "FAIL", steps.concat("⚠️ " + (e.message || e)).join("\n"));
+      throw new Error((e.message || e) + "\n\nDone before the error:\n" + steps.join("\n"));
+    }
+    throw e;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------- Undo add class (only classes added from the dashboard, before anything was pushed) ----------
+const ADD_CLASS_LOG_KEY = "ADD_CLASS_LOG";              // Script Properties: last 20 classes added from the dashboard
+const ADD_CLASS_NODE_TYPES = ["LIVE_LECTURE", "VIDEO_LECTURE", "LIVE_CLASS_NOTES", "DAILY_PRACTICE_PROBLEMS"];
+
+function acRecords_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(ADD_CLASS_LOG_KEY) || "[]"); } catch (e) { return []; }
+}
+function acSaveRecords_(list) { PropertiesService.getScriptProperties().setProperty(ADD_CLASS_LOG_KEY, JSON.stringify(list.slice(0, 20))); }
+function acRecordAdd_(rec) { acSaveRecords_([rec].concat(acRecords_().filter(r => r.code !== rec.code))); }
+
+/** Classes added from the dashboard (newest first) */
+function webAddClassRecent() {
+  assertOwner_("add_class");
+  return acRecords_();
+}
+
+/** What undo would do, and whether it is allowed. Nothing is written here. */
+function acUndoPlan_(code) {
+  const rec = acRecords_().filter(r => r.code === code)[0];
+  if (!rec) throw new Error(code + " was not added from the dashboard (or is too old) – undo is not available.");
+  if (rec.undone) throw new Error(code + " was already undone (" + rec.undone + ").");
+  const T = acTab_(rec.key);
+  const cCode = T.ci("chapter_code"), cStat = T.ci("chapter_status");
+  let row = -1;
+  for (let i = 1; i < T.d.length; i++) if (b_(T.d[i][cCode]).toUpperCase() === code) { row = i + 1; break; }
+  const blocks = [];
+  if (row > 0 && cStat !== undefined && b_(T.d[row - 1][cStat]).toUpperCase() === "RECORDED") blocks.push("the class is RECORDED in the live sheet");
+  const pushed = (todayLogMap_()[code] || {});
+  const done = ["dash", "nodes", "dpp"].filter(k => pushed[k] && pushed[k].ok);
+  if (done.length) blocks.push("it was already pushed to Internal Metrics (" + done.join(", ") + ") – undo would not remove it there");
+  const mt = T.file.getSheetByName(code + BACKUP_TAB_SUFFIX);
+  let microData = false;
+  if (mt && mt.getLastRow() >= 2) {
+    const v = mt.getRange(1, 1, mt.getLastRow(), Math.max(1, mt.getLastColumn())).getDisplayValues();
+    const k = v[0].map(b_).indexOf(BACKUP_KEY_HEADER);
+    microData = v.slice(1).some(r => r.some((x, j) => j !== k && b_(x) !== ""));
+  }
+  const node = acNodeSubject_(rec.key);
+  const lines = [
+    row > 0 ? T.f.name + " / " + T.tab.getName() + ": delete row " + row + " (" + code + ")" : "⚠️ " + code + " is no longer in " + T.f.name + " (already deleted?)",
+    rec.posStep && row > 0 ? "position: rows below −" + rec.posStep : "",
+    !rec.micro ? "Microlecture tab: not created by Add class – left as it is" :
+      !mt ? "Microlecture tab " + code + BACKUP_TAB_SUFFIX + " is already gone" :
+      microData ? "⚠️ Microlecture tab " + mt.getName() + " has data – it is NOT deleted" : "delete tab " + mt.getName(),
+    "NodePath " + node.label + ": delete the rows of " + code + " (lecture / notes / DPP), node_id / position renumbered"
+  ].filter(Boolean);
+  return { rec: rec, T: T, row: row, mt: mt, microData: microData, node: node, blocks: blocks, lines: lines };
+}
+
+function webAddClassUndoPlan(code) {
+  assertOwner_("add_class");
+  if (isStage_()) throw new Error("STAGE mode is on – undo changes the production sheets. Switch to Production first.");
+  const u = acUndoPlan_(String(code || "").toUpperCase());
+  let np = null;
+  try { const r = runSubject(u.node.key, { apply: false }); np = { lines: r.lines, warnings: r.warnings }; }
+  catch (e) { np = { error: String(e.message || e) }; }
+  return { code: u.rec.code, lines: u.lines, blocks: u.blocks, nodepath: np };
+}
+
+function webAddClassUndo(code) {
+  assertOwner_("add_class");
+  assertNotFrozen_();
+  if (isStage_()) throw new Error("STAGE mode is on – undo changes the production sheets. Switch to Production first.");
+  code = String(code || "").toUpperCase();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("Another update is running, please try again shortly.");
+  const steps = [];
+  let ok = true;
+  try {
+    const u = acUndoPlan_(code);
+    if (u.blocks.length) throw new Error("Undo is not possible: " + u.blocks.join("; ") + ".");
+    const T = u.T, sh = T.tab;
+
+    // 1) Chapters row + position numbers below
+    if (u.row > 0) {
+      const cPos = T.ci(["position", "pos"]);
+      sh.deleteRow(u.row);
+      if (u.rec.posStep && cPos !== undefined && u.row <= T.lastRow - 1) {
+        const vals = [];
+        for (let i = u.row + 1; i <= T.lastRow; i++) {
+          const f = T.fx[i - 1][cPos], x = T.v[i - 1][cPos];
+          vals.push([f ? f : (typeof x === "number" || (b_(x) !== "" && !isNaN(Number(x))) ? Number(x) - u.rec.posStep : x)]);
+        }
+        sh.getRange(u.row, cPos + 1, vals.length, 1).setValues(vals);
+      }
+      SpreadsheetApp.flush();
+      steps.push("✓ " + T.f.name + " / " + sh.getName() + ": row " + u.row + " deleted" + (u.rec.posStep ? ", position below −" + u.rec.posStep : ""));
+    } else steps.push("• " + code + " was not in the live sheet any more");
+
+    // 2) Microlecture tab (only the one Add class created, and only while it has no data)
+    if (u.rec.micro && u.mt && !u.microData) {
+      try { T.file.deleteSheet(u.mt); steps.push("✓ tab " + code + BACKUP_TAB_SUFFIX + " deleted"); }
+      catch (e) { ok = false; steps.push("⚠️ tab " + code + BACKUP_TAB_SUFFIX + " not deleted: " + (e.message || e)); }
+    } else if (u.rec.micro && u.mt) steps.push("⚠️ tab " + u.mt.getName() + " has data – left as it is");
+
+    // 3) NodePath: delete the lecture / notes / DPP rows of this code, then the normal update (tests go back to the chapter's last lecture, renumber)
+    try {
+      const nss = SpreadsheetApp.openByUrl(CFG.FILES[u.node.lang]);
+      const subj = subjectCfg_(null, u.node.key), nsh = resolveTab_(nss, subj), c = readPath_(nsh);
+      const del = [];
+      c.data.forEach((r, i) => { if (S_(r[c.col.chapter_code]).toUpperCase() === code && ADD_CLASS_NODE_TYPES.indexOf(S_(r[c.col.task_type])) >= 0) del.push(c.first + i); });
+      del.reverse().forEach(rn => nsh.deleteRow(rn));
+      SpreadsheetApp.flush();
+      const r = runSubject(u.node.key, { apply: true, renumber: true });
+      steps.push("✓ NodePath " + u.node.label + " (" + r.sheet + "): " + del.length + " rows deleted" + (r.lines.length ? " · " + r.lines.map(x => x.replace(/^•\s*/, "")).join(" · ") : ""));
+    } catch (e) { ok = false; steps.push("⚠️ NodePath not changed: " + (e.message || e) + " – delete the rows of " + code + " by hand and run NodePath update."); }
+
+    acSaveRecords_(acRecords_().map(r => r.code === code ? Object.assign(r, { undone: admNow_() }) : r));
+    cacheDel_(["td_" + u.rec.key + "_" + u.rec.date, "np_" + u.node.key]);
+    logAction_("ADD_CLASS_UNDO", code, ok ? "OK" : "PARTIAL", steps.join("\n"));
+    return { ok: ok, code: code, date: u.rec.date, steps: steps };
+  } catch (e) {
+    if (steps.length) {
+      logAction_("ADD_CLASS_UNDO", code, "FAIL", steps.concat("⚠️ " + (e.message || e)).join("\n"));
       throw new Error((e.message || e) + "\n\nDone before the error:\n" + steps.join("\n"));
     }
     throw e;
