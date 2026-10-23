@@ -89,6 +89,7 @@ function adminSetSharedOk(email, allow) {
 // ---------- Feature access (set per user in the admin panel) ----------
 const FEATURES = [
   { id: "today",      label: "Today tab" },
+  { id: "add_class",  label: "Add class (live sheet row + Microlecture tab + NodePath)" },
   { id: "lecture",    label: "Lecture Push (form, links, import from main sheet)" },
   { id: "push_dash",  label: "Update on Sheet and Internal Metrics", needs: "lecture" },
   { id: "push_nodes", label: "Push Nodes",                           needs: "lecture" },
@@ -422,8 +423,8 @@ function admFiles_(opts) {
 // Which files each feature needs (the dashboard runs as the user, so it needs Editor access to these files).
 // Batch OPS is always needed (Automation tab + activity log).
 const FILE_GROUP_FEATURES = {
-  live: ["today", "lecture", "push_dash", "push_nodes", "push_dpp", "pdf_update", "nodepath", "thumbnail"],
-  node: ["nodepath", "upload", "push_nodes", "push_dpp"],
+  live: ["today", "add_class", "lecture", "push_dash", "push_nodes", "push_dpp", "pdf_update", "nodepath", "thumbnail"],
+  node: ["nodepath", "add_class", "upload", "push_nodes", "push_dpp"],
   dpp:  ["dpp"]
 };
 const FILE_GROUP_LABEL = { book: "always needed", live: "Today / Lecture Push / NodePath", node: "NodePath / Upload / Push Nodes / Push DPP", dpp: "DPP upload" };

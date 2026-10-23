@@ -2408,6 +2408,306 @@ function webPush(lang, kind, apply, pdfKey, form, snap) {
   }
 }
 
+// ====================== ADD CLASS (live sheet + Microlecture tab + NodePath) ======================
+// The new lecture goes right below the last lecture of its chapter (NodePath follows the Chapters row order).
+// The new row gets plain values only (no formulas); format + dropdowns come from the nearest row that is not RECORDED.
+const ADD_CLASS_FILL = { code: "chapter_code", title: "title", teacher: "teacher_name", date: "live_date",
+                         start: "live_start_time", end: "live_end_time", type: "chapter_type", status: "chapter_status" };
+const ADD_CLASS_COPY = ["chapter_name", "chapter_number", "active"];     // same chapter -> same value as its last lecture
+const ADD_CLASS_NEW = "__new__";                                         // chapter id for "new chapter (at the end)"
+
+function acTab_(key) {
+  const f = BACKUP_FILES[key];
+  if (!f) throw new Error("Unknown subject: " + key);
+  const file = SpreadsheetApp.openByUrl(f.url);
+  const tab = file.getSheets().filter(t => /^chapters?\s*_?\s*(hindi)?$/i.test(t.getName().trim()))[0];
+  if (!tab) throw new Error(f.name + ": Chapters tab not found");
+  const rng = tab.getDataRange();
+  const v = rng.getValues(), d = rng.getDisplayValues(), fx = rng.getFormulas();
+  const h = d[0].map(x => b_(x).toLowerCase());
+  const ci = n => [].concat(n).map(x => h.indexOf(x)).filter(i => i >= 0)[0];
+  if (ci("chapter_code") === undefined) throw new Error(f.name + " / " + tab.getName() + ": chapter_code column not found");
+  return { key: key, f: f, file: file, tab: tab, v: v, d: d, fx: fx, h: h, ci: ci, lastCol: h.length, lastRow: d.length };
+}
+
+function acRoman_(n) {
+  const t = [[100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+  let s = "";
+  t.forEach(p => { while (n >= p[0]) { s += p[1]; n -= p[0]; } });
+  return s;
+}
+
+/** Chapters in row order – same grouping as NodePath (title without " - II", else chapter_name / chapter_number). */
+function acChapters_(T) {
+  const cCode = T.ci("chapter_code"), cTitle = T.ci("title"), cName = T.ci("chapter_name"), cNo = T.ci("chapter_number");
+  const get = (i, c) => c === undefined ? "" : b_(T.d[i][c]);
+  const list = [], byId = {};
+  for (let i = 1; i < T.d.length; i++) {
+    const code = get(i, cCode);
+    if (!code) continue;
+    const title = get(i, cTitle), name = get(i, cName), no = get(i, cNo);
+    const base = stripRoman_(title || name) || stripRoman_(name);
+    const id = base ? chapKey_(base) : "C|" + no;
+    let c = byId[id];
+    if (!c) { c = byId[id] = { id: id, name: base || ("Chapter " + no), lectures: 0 }; list.push(c); }
+    c.lectures++; c.lastRow = i + 1; c.lastCode = code; c.lastTitle = title;
+  }
+  list.forEach(c => {
+    const m = c.lastTitle.match(/^(.*?)\s*-\s*([IVXLC]+)\s*$/i);
+    c.nextTitle = m ? m[1] + " - " + acRoman_(roman_(m[2]) + 1) : (c.lastTitle ? c.lastTitle + " - II" : "");
+  });
+  return list;
+}
+
+function acNextCode_(T) {
+  const re = new RegExp("^2027NEET" + T.key + "LIVE(\\d+)$", "i"), cCode = T.ci("chapter_code");
+  let max = 0;
+  for (let i = 1; i < T.d.length; i++) { const m = b_(T.d[i][cCode]).match(re); if (m) max = Math.max(max, Number(m[1])); }
+  return "2027NEET" + T.key + "LIVE" + (max + 1);
+}
+
+function acNodeSubject_(key) {
+  const s = CFG.SUBJECTS.filter(x => x.orderFile === key)[0];
+  if (!s) throw new Error("NodePath subject not found for " + key);
+  return s;
+}
+
+/** Dropdowns for the Add class form */
+function webAddClassInfo(key) {
+  assertOwner_("add_class");
+  const T = acTab_(key);
+  const distinct = c => {
+    if (c === undefined) return [];
+    const seen = {}, out = [];
+    for (let i = T.d.length - 1; i >= 1; i--) { const x = b_(T.d[i][c]); if (x && !seen[x]) { seen[x] = 1; out.push(x); } }
+    return out;
+  };
+  const cStat = T.ci("chapter_status"), cType = T.ci("chapter_type");
+  let tplRow = -1;                                           // latest lecture that is not RECORDED -> default type / status
+  for (let i = T.d.length - 1; i >= 1 && tplRow < 0; i--) if (cStat !== undefined && b_(T.d[i][cStat]) && b_(T.d[i][cStat]).toUpperCase() !== "RECORDED") tplRow = i;
+  return {
+    key: key, fileName: T.f.name, tabName: T.tab.getName(), lastRow: T.lastRow,
+    chapters: acChapters_(T), nextCode: acNextCode_(T),
+    teachers: distinct(T.ci("teacher_name")).slice(0, 60),
+    types: distinct(cType), statuses: distinct(cStat),
+    defType: tplRow > 0 && cType !== undefined ? b_(T.d[tplRow][cType]) : "LIVE",
+    defStatus: tplRow > 0 ? b_(T.d[tplRow][cStat]) : "LIVE",
+    nodeSubject: acNodeSubject_(key).label
+  };
+}
+
+/** Checks the form against the sheet and works out every change. Nothing is written here. */
+function acPlan_(T, d) {
+  d = d || {};
+  const code = b_(d.code).toUpperCase();
+  if (!new RegExp("^2027NEET" + T.key + "LIVE\\d+$").test(code)) {
+    if (/ML\d+$/.test(code)) throw new Error("Enter the chapter code without ML1 (the sheet adds it).");
+    throw new Error("Chapter code must look like 2027NEET" + T.key + "LIVE123 (current: \"" + code + "\").");
+  }
+  const cCode = T.ci("chapter_code");
+  for (let i = 1; i < T.d.length; i++) if (b_(T.d[i][cCode]).toUpperCase() === code) throw new Error(code + " already exists in " + T.f.name + " (row " + (i + 1) + ").");
+  const title = b_(d.title);
+  if (!title) throw new Error("Enter the title.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.date || ""))) throw new Error("Choose a valid date.");
+  const tm = x => { const m = String(x || "").match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/); return m ? [Number(m[1]), Number(m[2]), Number(m[3] || 0)] : null; };
+  const ts = tm(d.start), te = tm(d.end);
+  if (!ts || !te) throw new Error("Enter a valid start and end time.");
+  if (te[0] * 3600 + te[1] * 60 + te[2] <= ts[0] * 3600 + ts[1] * 60 + ts[2]) throw new Error("End time must be after the start time.");
+
+  const chapters = acChapters_(T);
+  let ch = null, afterRow;
+  if (d.chapter === ADD_CLASS_NEW) {
+    if (!b_(d.chapterName)) throw new Error("Enter the name of the new chapter.");
+    afterRow = T.lastRow;
+  } else {
+    ch = chapters.filter(c => c.id === d.chapter)[0];
+    if (!ch) throw new Error("Chapter not found in the sheet – reopen Add class.");
+    if (d.afterCode && d.afterCode !== ch.lastCode) throw new Error("The sheet changed (the last lecture of " + ch.name + " is now " + ch.lastCode + "). Reopen Add class.");
+    afterRow = ch.lastRow;
+  }
+  const newRow = afterRow + 1;
+
+  // number sequences: position (shifted for every row below), chapter_number (new chapter = next number)
+  const num = (i, c) => { const x = T.v[i - 1][c]; return typeof x === "number" ? x : (b_(x) !== "" && !isNaN(Number(x)) ? Number(x) : null); };
+  const cPos = T.ci(["position", "pos"]);
+  const pos = { col: cPos, value: "", shift: 0, step: 0, note: "" };
+  if (cPos !== undefined) {
+    const diffs = {};
+    for (let i = 3; i <= T.lastRow; i++) { const a = num(i - 1, cPos), b = num(i, cPos); if (a !== null && b !== null && b > a) diffs[b - a] = (diffs[b - a] || 0) + 1; }
+    pos.step = Number(Object.keys(diffs).sort((a, b) => diffs[b] - diffs[a])[0]) || 1;
+    const prev = num(afterRow, cPos);
+    if (prev === null) pos.note = "position left empty (the row above has no number)";
+    else {
+      pos.value = prev + pos.step;
+      for (let i = newRow; i <= T.lastRow; i++) if (num(i, cPos) !== null) pos.shift++;
+    }
+  }
+  const cNo = T.ci("chapter_number");
+  let chapterNo = "";
+  if (!ch && cNo !== undefined) {
+    let max = 0;
+    for (let i = 2; i <= T.lastRow; i++) { const n = num(i, cNo); if (n !== null) max = Math.max(max, n); }
+    chapterNo = max + 1;
+  }
+
+  // format source: nearest row that is not RECORDED (a RECORDED row is coloured green)
+  const cStat = T.ci("chapter_status");
+  const notRec = i => cStat === undefined || b_(T.d[i - 1][cStat]).toUpperCase() !== "RECORDED";
+  let fmtRow = afterRow;
+  for (let k = 0; k < T.lastRow; k++) {
+    if (afterRow - k >= 2 && notRec(afterRow - k)) { fmtRow = afterRow - k; break; }
+    if (afterRow + k + 1 <= T.lastRow && notRec(afterRow + k + 1)) { fmtRow = afterRow + k + 1; break; }
+  }
+
+  const microTab = code + BACKUP_TAB_SUFFIX;
+  const microTpl = (ch && T.file.getSheetByName(ch.lastCode + BACKUP_TAB_SUFFIX)) ||
+    T.file.getSheets().filter(s => s.getName().slice(-BACKUP_TAB_SUFFIX.length) === BACKUP_TAB_SUFFIX).slice(-1)[0] || null;
+  const filled = Object.keys(ADD_CLASS_FILL).map(k => ADD_CLASS_FILL[k]).filter(n => T.ci(n) !== undefined)
+    .concat(ADD_CLASS_COPY.filter(n => T.ci(n) !== undefined), cPos !== undefined && pos.value !== "" ? [T.h[cPos]] : []);
+  return {
+    code: code, title: title, teacher: b_(d.teacher), date: d.date, ts: ts, te: te,
+    type: b_(d.type) || "LIVE", status: b_(d.status) || "LIVE",
+    chapter: ch, chapterName: ch ? ch.name : b_(d.chapterName), chapterNo: chapterNo,
+    afterRow: afterRow, newRow: newRow, fmtRow: fmtRow, pos: pos,
+    filled: filled, empty: T.h.filter(n => n && filled.indexOf(n) < 0),
+    microTab: microTab, microExists: !!T.file.getSheetByName(microTab), microTpl: microTpl ? microTpl.getName() : "",
+    node: acNodeSubject_(T.key)
+  };
+}
+
+function acSummary_(T, p) {
+  return [
+    T.f.name + " → " + T.tab.getName() + ": new row " + p.newRow + (p.chapter ? " (below " + (p.chapter.lastTitle || p.chapter.lastCode) + ", row " + p.afterRow + ")" : " (new chapter \"" + p.chapterName + "\", at the end)"),
+    p.code + " · " + p.title + (p.teacher ? " · " + p.teacher : "") + " · " + p.date + " " + p.ts.slice(0, 2).map(n => ("0" + n).slice(-2)).join(":") + "–" + p.te.slice(0, 2).map(n => ("0" + n).slice(-2)).join(":") + " · " + p.type + " / " + p.status,
+    "Filled: " + p.filled.join(", "),
+    p.empty.length ? "Left empty: " + p.empty.join(", ") : "",
+    p.pos.col !== undefined ? (p.pos.note ? "⚠️ " + p.pos.note : "position = " + p.pos.value + (p.pos.shift ? ", " + p.pos.shift + " rows below +" + p.pos.step : "")) : "",
+    p.microExists ? "Microlecture tab " + p.microTab + " already exists (not changed)" : "New tab " + p.microTab + (p.microTpl ? " (layout of " + p.microTpl + ")" : ""),
+    "NodePath " + p.node.label + ": new lecture added + node_id / position renumbered"
+  ].filter(Boolean);
+}
+
+/** Preview for the first confirmation (also shows other pending NodePath changes of that subject, they are applied too). */
+function webAddClassPlan(key, d) {
+  assertOwner_("add_class");
+  if (isStage_()) throw new Error("STAGE mode is on – Add class changes the production sheets. Switch to Production first.");
+  const T = acTab_(key), p = acPlan_(T, d);
+  const lines = acSummary_(T, p);
+  let np = null;
+  try { const r = runSubject(p.node.key, { apply: false }); np = { lines: r.lines, warnings: r.warnings }; }
+  catch (e) { np = { error: String(e.message || e) }; }
+  return { lines: lines, nodepath: np, newRow: p.newRow };
+}
+
+/** live_date / time value in the style the column already uses (real date/time or text) */
+function acCellValue_(T, c, kind, p) {
+  let isDate = true, sample = "";
+  for (let i = 1; i < T.d.length; i++) if (b_(T.d[i][c])) { isDate = T.v[i][c] instanceof Date; sample = b_(T.d[i][c]); break; }
+  const tz = T.file.getSpreadsheetTimeZone(), p2 = n => ("0" + n).slice(-2);
+  if (kind === "date") {
+    const dp = p.date.split("-").map(Number);
+    if (isDate) return { v: Utilities.parseDate(p.date + " 00:00:00", tz, "yyyy-MM-dd HH:mm:ss"), text: false };
+    return { v: /^\d{4}-/.test(sample) ? p.date : p2(dp[2]) + "/" + p2(dp[1]) + "/" + dp[0], text: true };
+  }
+  const t = kind === "start" ? p.ts : p.te;
+  if (isDate) return { v: Utilities.parseDate("1899-12-30 " + p2(t[0]) + ":" + p2(t[1]) + ":" + p2(t[2]), tz, "yyyy-MM-dd HH:mm:ss"), text: false };
+  return { v: /^\d{1,2}:\d{2}$/.test(sample) ? p2(t[0]) + ":" + p2(t[1]) : p2(t[0]) + ":" + p2(t[1]) + ":" + p2(t[2]), text: true };
+}
+
+function webAddClass(key, d) {
+  assertOwner_("add_class");
+  assertNotFrozen_();
+  if (isStage_()) throw new Error("STAGE mode is on – Add class changes the production sheets. Switch to Production first.");
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("Another update is running, please try again shortly.");
+  const steps = [];
+  let ok = true, p = null, T = null, inserted = false;
+  try {
+    T = acTab_(key);
+    p = acPlan_(T, d);
+    const sh = T.tab, n = T.lastCol;
+
+    // 1) Chapters: new row below the chapter's last lecture (plain values, no formulas)
+    sh.insertRowsAfter(p.afterRow, 1);
+    inserted = true;
+    const fmtRow = p.fmtRow > p.afterRow ? p.fmtRow + 1 : p.fmtRow;           // rows below moved down by one
+    const src = sh.getRange(fmtRow, 1, 1, n), dst = sh.getRange(p.newRow, 1, 1, n);
+    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+    const row = new Array(n).fill("");
+    const put = (name, val) => { const c = T.ci(name); if (c !== undefined) row[c] = val; };
+    put("chapter_code", p.code); put("title", p.title); put("teacher_name", p.teacher);
+    put("chapter_type", p.type); put("chapter_status", p.status);
+    ["date", "start", "end"].forEach(k => {
+      const c = T.ci(ADD_CLASS_FILL[k]);
+      if (c === undefined) return;
+      const cv = acCellValue_(T, c, k, p);
+      if (cv.text) sh.getRange(p.newRow, c + 1).setNumberFormat("@");          // keep text as text
+      row[c] = cv.v;
+    });
+    ADD_CLASS_COPY.forEach(name => { const c = T.ci(name); if (c !== undefined && p.chapter) row[c] = T.v[p.afterRow - 1][c]; });
+    if (!p.chapter) { put("chapter_name", p.chapterName); put("chapter_number", p.chapterNo); const ca = T.ci("active"); if (ca !== undefined) row[ca] = T.v[p.afterRow - 1][ca]; }
+    if (p.pos.col !== undefined) row[p.pos.col] = p.pos.value;
+    sh.getRange(p.newRow, 1, 1, n).setValues([row]);
+    steps.push("✓ " + T.f.name + " / " + sh.getName() + ": row " + p.newRow + " added" + (p.chapter ? " (below row " + p.afterRow + ")" : " (new chapter)"));
+
+    // 2) position: every numbered row below goes up by one step (formula cells are left as they are)
+    if (p.pos.col !== undefined && p.pos.value !== "" && p.pos.shift) {
+      const c = p.pos.col, cnt = T.lastRow - p.afterRow;
+      const vals = [];
+      for (let i = p.afterRow + 1; i <= T.lastRow; i++) {
+        const f = T.fx[i - 1][c], x = T.v[i - 1][c];
+        vals.push([f ? f : (typeof x === "number" || (b_(x) !== "" && !isNaN(Number(x))) ? Number(x) + p.pos.step : x)]);
+      }
+      sh.getRange(p.newRow + 1, c + 1, cnt, 1).setValues(vals);
+      steps.push("✓ position: " + p.pos.shift + " rows below +" + p.pos.step);
+    } else if (p.pos.note) steps.push("⚠️ " + p.pos.note);
+    SpreadsheetApp.flush();
+
+    // 3) Microlecture tab (filled later by the push / sheet backup)
+    try {
+      if (p.microExists) steps.push("• Microlecture tab " + p.microTab + " already exists (not changed)");
+      else {
+        const tpl = p.microTpl ? T.file.getSheetByName(p.microTpl) : null;
+        let mt;
+        if (tpl) {
+          mt = tpl.copyTo(T.file).setName(p.microTab);
+          const lr = mt.getLastRow(), lc = Math.max(1, mt.getLastColumn());
+          if (lr >= 2) mt.getRange(2, 1, lr - 1, lc).clearContent();
+          const hdr = mt.getRange(1, 1, 1, lc).getValues()[0].map(b_);
+          const k = hdr.indexOf(BACKUP_KEY_HEADER);
+          if (k >= 0) mt.getRange(2, k + 1).setValue(p.code + CFG.ML_SUFFIX);
+        } else {
+          mt = T.file.insertSheet(p.microTab);
+          mt.getRange(1, 1, 2, 1).setValues([[BACKUP_KEY_HEADER], [p.code + CFG.ML_SUFFIX]]);
+        }
+        SpreadsheetApp.flush();
+        steps.push("✓ Microlecture tab " + p.microTab + " created" + (tpl ? " (layout of " + p.microTpl + ")" : ""));
+      }
+    } catch (e) { ok = false; steps.push("⚠️ Microlecture tab not created: " + (e.message || e) + " – create " + p.microTab + " by hand."); }
+
+    // 4) NodePath: same as "NodePath update" for this subject (adds the 3 rows of the new lecture, renumbers)
+    try {
+      const r = runSubject(p.node.key, { apply: true, renumber: true });
+      steps.push("✓ NodePath " + p.node.label + " (" + r.sheet + "): " + (r.lines.length ? r.lines.map(x => x.replace(/^•\s*/, "")).join(" · ") : "no change"));
+      (r.warnings || []).forEach(w => steps.push(w));
+    } catch (e) { ok = false; steps.push("⚠️ NodePath not updated: " + (e.message || e) + " – run NodePath update for " + p.node.label + "."); }
+
+    cacheDel_(["td_" + key + "_" + p.date, "np_" + p.node.key]);
+    logAction_("ADD_CLASS", p.code, ok ? "OK" : "PARTIAL", acSummary_(T, p).concat(steps).join("\n"));
+    return { ok: ok, code: p.code, row: p.newRow, date: p.date, steps: steps };
+  } catch (e) {
+    if (inserted) {                                        // the Chapters sheet was changed – record what happened
+      if (!steps.length) steps.push("⚠️ an empty row may have been inserted at row " + p.newRow + " of " + T.f.name + " – check the sheet");
+      logAction_("ADD_CLASS", p.code, "FAIL", steps.concat("⚠️ " + (e.message || e)).join("\n"));
+      throw new Error((e.message || e) + "\n\nDone before the error:\n" + steps.join("\n"));
+    }
+    throw e;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ============================== CORE ==============================
 
 function runSubject(key, opts) {

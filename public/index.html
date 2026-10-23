@@ -362,6 +362,7 @@
       <button class="btn icon-only" id="tdNext" title="Next day" aria-label="Next day"><i data-ic="right"></i></button>
       <button class="btn" id="tdToday">Today</button>
       <button class="btn" id="tdReload"><i data-ic="refresh"></i>Refresh</button>
+      <button class="btn primary" id="tdAdd" hidden><i data-ic="plus"></i>Add class</button>
       <div class="tabs tdfilter" id="tdFilter">
         <button data-f="pending" class="on">Pending</button>
         <button data-f="all">All</button>
@@ -611,6 +612,37 @@
     <div class="row">
       <button class="btn" id="dppDlgNo">Cancel</button>
       <button class="btn primary" id="dppDlgYes">Save</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="acDlg">
+  <div class="dlg" style="overflow:auto">
+    <h3>Add class</h3>
+    <div class="hint" style="margin:0">Adds the class to the live sheet (right below the last lecture of its chapter), creates its Microlecture tab and adds it to NodePath. Nothing is sent to Internal Metrics.</div>
+    <div class="pdfbtns">
+      <div><label class="lbl" for="acSub">Subject</label><select class="inp" id="acSub"><option value="PHY">Physics</option><option value="CHE">Chemistry</option><option value="BIO">Biology</option></select></div>
+      <div><label class="lbl" for="acLang">Language</label><select class="inp" id="acLang"><option value="HIN">Hindi</option><option value="ENG">English</option></select></div>
+    </div>
+    <label class="lbl" for="acCh">Chapter</label>
+    <select class="inp" id="acCh"></select>
+    <input class="inp" id="acChName" placeholder="Name of the new chapter" autocomplete="off" hidden>
+    <label class="lbl" for="acCode">Chapter code <span class="muted">(next number, can be changed)</span></label>
+    <input class="inp mono" id="acCode" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <label class="lbl" for="acTitle">Title</label>
+    <input class="inp" id="acTitle" autocomplete="off">
+    <div class="pdfbtns">
+      <div><label class="lbl" for="acTeacher">Teacher</label><input class="inp" id="acTeacher" list="acTeachers" autocomplete="off"><datalist id="acTeachers"></datalist></div>
+      <div><label class="lbl" for="acDate">Date</label><input type="date" class="inp" id="acDate"></div>
+      <div><label class="lbl" for="acStart">Start time</label><input type="time" class="inp" id="acStart"></div>
+      <div><label class="lbl" for="acEnd">End time</label><input type="time" class="inp" id="acEnd"></div>
+      <div><label class="lbl" for="acType">Type</label><select class="inp" id="acType"></select></div>
+      <div><label class="lbl" for="acStat">Status</label><select class="inp" id="acStat"></select></div>
+    </div>
+    <div class="hint" id="acWhere" style="margin:0"></div>
+    <div class="err" id="acErr" hidden></div>
+    <div class="row">
+      <button class="btn" id="acNo">Cancel</button>
+      <button class="btn primary" id="acYes">Add to sheet</button>
     </div>
   </div>
 </dialog>
@@ -1283,6 +1315,7 @@
     FEAT = Array.isArray(list) ? list : null;      // older server that does not send features = show everything
     var navBtn = function (v) { return document.querySelector('#nav [data-v="' + v + '"]'); };
     ['today', 'lec', 'np', 'dpp', 'thumb', 'files'].forEach(function (v) { navBtn(v).hidden = !viewOk(v); });
+    $('tdAdd').hidden = !can('add_class');
     var pushMap = { dashboard: 'push_dash', nodes: 'push_nodes', dpp: 'push_dpp' }, anyPush = false;
     Array.prototype.forEach.call(document.querySelectorAll('[data-push]'), function (b) {
       var k = b.getAttribute('data-push');
@@ -1711,6 +1744,81 @@
     } else go();
   }
   $('tdReload').onclick = function () { tdLoad(undefined, true); };
+
+  // ---------- Add class (live sheet row + Microlecture tab + NodePath) ----------
+  var ac = { info: null, seq: 0 };
+  function acKey() { return $('acSub').value + $('acLang').value; }
+  function acOpts(sel, list, def) { sel.innerHTML = list.map(function (x) { return '<option' + (x === def ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); }
+  function acChapter() { var v = $('acCh').value; return ac.info ? ac.info.chapters.filter(function (c) { return c.id === v; })[0] : null; }
+  function acWhere() {
+    var i = ac.info, c = acChapter();
+    $('acChName').hidden = $('acCh').value !== '__new__';
+    if (!i) { $('acWhere').textContent = ''; return; }
+    $('acWhere').textContent = i.fileName + ' → ' + i.tabName + ': ' + (c ? 'row ' + (c.lastRow + 1) + ', below "' + (c.lastTitle || c.lastCode) + '" (row ' + c.lastRow + ')'
+      : 'row ' + (i.lastRow + 1) + ' (new chapter, at the end)') + ' · NodePath ' + i.nodeSubject;
+  }
+  function acLoad() {
+    var my = ++ac.seq;
+    ac.info = null;
+    $('acErr').hidden = true; $('acYes').disabled = true;
+    $('acCh').innerHTML = '<option>Loading…</option>'; acWhere();
+    call('webAddClassInfo', acKey()).then(function (i) {
+      if (my !== ac.seq) return;
+      ac.info = i;
+      $('acCh').innerHTML = i.chapters.map(function (c) {
+        return '<option value="' + esc(c.id) + '">' + esc(c.name) + ' (' + c.lectures + ' lecture' + (c.lectures === 1 ? '' : 's') + ')</option>';
+      }).join('') + '<option value="__new__">+ New chapter (added at the end)</option>';
+      var latest = i.chapters.slice().sort(function (a, b) { return b.lastRow - a.lastRow; })[0];     // chapter of the bottom-most lecture
+      $('acCh').value = latest ? latest.id : '__new__';
+      $('acCode').value = i.nextCode;
+      $('acTitle').value = latest ? latest.nextTitle : '';
+      $('acTeachers').innerHTML = i.teachers.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('');
+      acOpts($('acType'), i.types.length ? i.types : [i.defType], i.defType);
+      acOpts($('acStat'), i.statuses.length ? i.statuses : [i.defStatus], i.defStatus);
+      acWhere();
+      $('acYes').disabled = false;
+    }).catch(function (e) {
+      if (my !== ac.seq) return;
+      $('acCh').innerHTML = ''; $('acErr').textContent = e; $('acErr').hidden = false;
+    });
+  }
+  $('acSub').onchange = acLoad;
+  $('acLang').onchange = acLoad;
+  $('acCh').onchange = function () { var c = acChapter(); $('acTitle').value = c ? c.nextTitle : ''; acWhere(); };
+  $('acNo').onclick = function () { $('acDlg').close(); };
+  $('tdAdd').onclick = function () {
+    $('acDate').value = $('tdDate').value || new Date().toISOString().slice(0, 10);
+    ['acStart', 'acEnd', 'acTeacher', 'acChName'].forEach(function (id) { $(id).value = ''; });
+    $('acDlg').showModal();
+    acLoad();
+  };
+  $('acYes').onclick = function () {
+    var i = ac.info, c = acChapter();
+    if (!i) return;
+    var d = { code: $('acCode').value.trim().toUpperCase(), title: $('acTitle').value.trim(), teacher: $('acTeacher').value.trim(),
+              date: $('acDate').value, start: $('acStart').value, end: $('acEnd').value, type: $('acType').value, status: $('acStat').value,
+              chapter: $('acCh').value, chapterName: $('acChName').value.trim(), afterCode: c ? c.lastCode : '' };
+    var key = acKey(), btn = $('acYes');
+    var busy = function (t) { btn.disabled = !!t; btn.textContent = t || 'Add to sheet'; };
+    $('acErr').hidden = true;
+    busy('Checking…');
+    call('webAddClassPlan', key, d).then(function (p) {
+      var np = p.nodepath || {};
+      var body = p.lines.join('\n') + (np.error ? '\n\n⚠️ NodePath preview failed: ' + np.error
+        : (np.lines && np.lines.length ? '\n\nNodePath – other pending changes of this subject (applied too):\n' + np.lines.join('\n') : ''));
+      return confirmBox2('Add class ' + d.code + '?', body, 'Yes, add').then(function (y) {
+        if (!y) return;
+        busy('Adding… (up to 1 min)');
+        return call('webAddClass', key, d).then(function (r) {
+          $('acDlg').close();
+          confirmBox(r.ok ? 'Class added' : 'Class added – check the warnings', r.steps.join('\n'), null);
+          toast(r.ok ? 'Class added: ' + r.code : 'Class added with warnings');
+          tdLoad(r.date, true);
+        });
+      });
+    }).catch(function (e) { $('acErr').textContent = String(e).replace(/^Error:\s*/, ''); $('acErr').hidden = false; })
+      .then(function () { busy(''); });
+  };
   $('tdToday').onclick = function () { $('tdDate').value = ''; tdLoad(''); };
   $('tdPrev').onclick = function () { var d = tdShift(-1); if (d) tdLoad(d); };
   $('tdNext').onclick = function () { var d = tdShift(1); if (d) tdLoad(d); };

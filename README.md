@@ -53,5 +53,7 @@ Only if your Google account allows service-account keys, you can use `GOOGLE_SA_
 
 ```
 node test/run.js     # login, admin, tokens, Stage switch, logs (mocked Google)
-node test/run2.js    # Today, Lecture, DPP list / flags / upload (.xlsx)
+node test/run2.js    # Today, Lecture, DPP list / flags / upload (.xlsx), PDF update
+node test/addclass.js  # Add class: live sheet row, position, Microlecture tab, NodePath
+node test/profile.js # time and Google calls per dashboard call
 ```
