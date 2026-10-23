@@ -209,6 +209,12 @@
   .log .entry.bad { border-left-color: var(--err); background: var(--err-bg); color: var(--err); }
   .log .entry b { display: block; margin-bottom: 2px; color: var(--ink); }
   .log .entry.bad b { color: var(--err); }
+  .log:not(:empty) { margin-top: 14px; }
+  .log .entry .msg { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .log .entry.open .msg { display: block; }
+  .log .entry.more { cursor: pointer; }
+  .log .entry .tg { float: right; font-weight: 600; opacity: .7; }
+  .log .entry.open .tg { transform: rotate(90deg); }
 
   /* today */
   .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
@@ -414,6 +420,7 @@
           <button class="btn primary" id="lecSave"><i data-ic="link"></i>Click here for links</button>
           <button class="btn danger" id="lecClear"><i data-ic="trash"></i>Clear</button>
         </div>
+        <div id="lecLogL" class="log"></div>
       </div>
 
       <div class="card">
@@ -847,12 +854,19 @@
     Array.prototype.forEach.call($('lang').children, function (b) { b.disabled = on; });
     $('lecSave').innerHTML = on && label ? '<span class="spin"></span> ' + esc(label) : ic('link') + 'Click here for links';
   }
-  function lecLog(title, text, kind) {
+  // Status under the card that was used: box 'L' = Lecture details, otherwise Data built in sheet (pushes).
+  // Max 3 per card, 2 lines each; a longer message opens on click.
+  function lecLog(title, text, kind, box) {
+    var log = $(box === 'L' ? 'lecLogL' : 'lecLog');
+    var t = String(text).replace(/^Error:\s*/, '').trim();
+    var more = t.split('\n').length > 2 || t.length > 110;      // by text, so it also works while the tab is hidden
     var e = document.createElement('div');
-    e.className = 'entry' + (kind ? ' ' + kind : '');
-    e.innerHTML = '<b>' + esc(title) + ' · ' + new Date().toLocaleTimeString() + '</b>' + esc(text);
-    $('lecLog').insertBefore(e, $('lecLog').firstChild);
-    while ($('lecLog').children.length > 6) $('lecLog').removeChild($('lecLog').lastChild);
+    e.className = 'entry' + (kind ? ' ' + kind : '') + (more ? ' more' : '');
+    e.innerHTML = '<b>' + esc(title) + ' · ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+      (more ? '<span class="tg">▸</span>' : '') + '</b><div class="msg">' + esc(t) + '</div>';
+    if (more) e.onclick = function () { e.classList.toggle('open'); };
+    log.insertBefore(e, log.firstChild);
+    while (log.children.length > 3) log.removeChild(log.lastChild);
   }
   function fillLec(d) {
     var typed = $('fCode').value.trim().toUpperCase();   // code that was in the form before saving
@@ -881,7 +895,7 @@
     // PDF box empty -> show the sheet PDF (S7/T13)
     if (!$('fPdf').value.trim() && /^https?:\/\//i.test(r.pdf || '')) { $('fPdf').value = r.pdf; showPdfFinal(); }
     showCodeErr();
-    if (d.note) lecLog('Note', d.note, 'bad');
+    if (d.note) lecLog('Note', d.note, 'bad', 'L');
   }
   function formData() {
     return {
@@ -920,13 +934,13 @@
     if (over) { toast('Minutes and seconds must be 0–59'); return false; }
     var sec = function (a) { return (Number(a[0]) || 0) * 3600 + (Number(a[1]) || 0) * 60 + (Number(a[2]) || 0); };
     var st = sec(f.start), en = sec(f.end);
-    if (en > 0 && en <= st) { toast('Video End must be after Video Start'); lecLog('Check times', 'Video End (' + en + 's) must be after Video Start (' + st + 's). Nothing was saved.', 'bad'); return false; }
+    if (en > 0 && en <= st) { toast('Video End must be after Video Start'); lecLog('Check times', 'Video End (' + en + 's) must be after Video Start (' + st + 's). Nothing was saved.', 'bad', 'L'); return false; }
     return true;
   }
   function lecLoad() {
     lecBusy(true, 'Loading…');
     return call('webLectureLoad', lec.lang).then(fillLec)
-      .catch(function (e) { lecLog('Load', e, 'bad'); })
+      .catch(function (e) { lecLog('Load', e, 'bad', 'L'); })
       .then(function () { lecBusy(false); });
   }
   function lecSave(quiet) {
@@ -936,7 +950,7 @@
     lecBusy(true, 'Searching for links…');
     return call('webLectureSave', lec.lang, f).then(function (d) {
       fillLec(d); if (!quiet) toast('Saved to sheet'); lecBusy(false); return d;
-    }).catch(function (e) { lecBusy(false); lecLog('Save', e, 'bad'); throw e; });
+    }).catch(function (e) { lecBusy(false); lecLog('Save', e, 'bad', 'L'); throw e; });
   }
   // Lecture (dashboard) + Nodes in one go: both previews -> one double confirmation -> step 1, then step 2.
   // Step 2 only runs when step 1 fully worked. DPP stays separate (it arrives at the end of the day).
@@ -1203,9 +1217,9 @@
         (b ? '\nBackup tab: ' + b.tab + '\n  default_start_time ' + (b.defaultStart || '—') + ' · video_start_position ' + (b.videoStart || '—') + ' · video_end_position ' + (b.videoEnd || '—') + ' (ms)'
            : '\nBackup tab not found (probably not pushed yet) – only PDF imported.') +
         (r.url ? '\nPDF: ' + r.url : '');
-      lecLog('Import from sheet', t, got.length ? 'ok' : 'bad');
+      lecLog('Import from sheet', t, got.length ? 'ok' : 'bad', 'L');
       toast(got.length ? 'Imported from sheet (' + got.join(', ') + ')' : 'No data found in sheet for this lecture');
-    }).catch(function (e) { lecLog('Import PDF', e, 'bad'); })
+    }).catch(function (e) { lecLog('Import PDF', e, 'bad', 'L'); })
       .then(function () { lecBusy(false); });
   };
   $('pdfUpdate').onclick = function () {
@@ -1224,10 +1238,10 @@
           else if (!r.sameLecture) { t += 'Note: the Automation sheet currently has a different lecture, so ' + r.automationCell + ' was not checked. Click "Click here for links" first.'; }
           else if (r.matches) { t += 'OK – ' + r.automationCell + ' picked up the new URL – this will be used for the push.'; }
           else { t += 'Warning: ' + r.automationCell + ' still shows the old URL:\n' + (r.automationPdf || '(empty)') + '\nCheck before pushing.'; kind = 'bad'; }
-          lecLog('Update PDF', t, kind);
+          lecLog('Update PDF', t, kind, 'L');
           toast(kind === 'ok' ? 'PDF updated in live sheet' : 'PDF update – check the log');
           return lecLoad();
-        }).catch(function (e) { lecLog('Update PDF', e, 'bad'); })
+        }).catch(function (e) { lecLog('Update PDF', e, 'bad', 'L'); })
           .then(function () { lecBusy(false); });
       });
   };
@@ -1240,7 +1254,7 @@
         lecBusy(true, 'Clearing…');
         call('webLectureClear', lec.lang).then(function (d) {
           fillLec(d); toast(nm + ' entry cleared');
-        }).catch(function (e) { lecLog('Clear', e, 'bad'); })
+        }).catch(function (e) { lecLog('Clear', e, 'bad', 'L'); })
           .then(function () { lecBusy(false); $('fCode').focus(); });
       });
   };
@@ -1688,9 +1702,9 @@
         if (can('push_dpp') && !x.dpp) todo.push('DPP');
         lecLog('Opened from Today', x.code + ' · ' + x.subject + (x.title ? ' · ' + x.title : '') +
           (todo.length ? '\nPending: ' + todo.join(', ') : '\nEverything is done.') +
-          (same ? '' : '\nSet Video Start / End, then click "Click here for links".'), todo.length ? '' : 'ok');
+          (same ? '' : '\nSet Video Start / End, then click "Click here for links".'), todo.length ? '' : 'ok', 'L');
         if (!same) $('s0').focus();
-      }).catch(function (e) { lecBusy(false); lecLog('Open', e, 'bad'); });
+      }).catch(function (e) { lecBusy(false); lecLog('Open', e, 'bad', 'L'); });
     };
     if (cur && cur.replace(/ML\d+$/, '') !== x.code) {
       confirmBox('Open in Lecture Push?', 'The Lecture Push form currently has ' + cur + '.\n\nIt will be replaced on this page with ' + x.code + ' (' + x.subject + '). Nothing is written to the sheet until you click "Click here for links" or a push button.', 'Yes, open').then(function (y) { if (y) go(); });
@@ -2174,11 +2188,11 @@
     b.hidden = false;
   }
   var _lecLog = lecLog;
-  lecLog = function (title, text, kind) {
+  lecLog = function (title, text, kind, box) {
     if (/permission to call|script\.external_request/i.test(String(text))) showAuth('');
     if (/EMERGENCY STOP is ON/.test(String(text))) showFreeze(null, String(text).replace(/^Error:\s*/, ''));
     if (isTokenErr(text)) setTimeout(function () { openToken('Your token has expired or is invalid (401). Paste a new token to continue.'); }, 0);
-    return _lecLog(title, text, kind);
+    return _lecLog(title, text, kind, box);
   };
 
   // ---------- Token ----------
@@ -2306,7 +2320,7 @@
       }
       lecBusy(false);
       if (info.lecture) fillLec(info.lecture);
-      else if (info.lectureError) lecLog('Load', info.lectureError, 'bad');
+      else if (info.lectureError) lecLog('Load', info.lectureError, 'bad', 'L');
       else if (can('lecture') && !info.token) lecLoad();          // older server (fallback only)
       showView(view);
       // load Today's data in the background (so the tab opens instantly)
