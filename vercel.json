@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "regions": ["bom1"],
   "functions": {
     "api/rpc.js": { "maxDuration": 300, "includeFiles": "{gas/**,lib/**}" }
   },
