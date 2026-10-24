@@ -51,6 +51,16 @@ const grid = (book, tab) => G.BOOKS[book].sheets.find(s => s.title === tab).grid
   const pv = await call('webPreview', ['PHYSICS_HIN', true]);
   ok('nodepath check: backup tab ignored', pv.sheet === 'PHY PATH', pv);
 
+  // Google read quota (429) twice: the server waits and the check still finishes
+  const realFetch = global.fetch;
+  let busy = 2;
+  global.fetch = (url, o) => (busy > 0 && /PHY%20PATH/.test(String(url)) && busy--)
+    ? Promise.resolve(new Response('{"error":{"message":"Quota exceeded"}}', { status: 429, headers: { 'retry-after': '1' } }))
+    : realFetch(url, o);
+  const pq = await call('webPreview', ['PHYSICS_HIN', true]);
+  global.fetch = realFetch;
+  ok('nodepath check: waits out the read quota (429)', busy === 0 && pq.sheet === 'PHY PATH', pq);
+
   const info = await call('webAddClassInfo', ['PHYHIN']);
   const kin = info.chapters.find(c => c.name === 'Kinematics');
   ok('info: chapters in row order', info.chapters.map(c => c.name).join('|') === 'Kinematics|Laws of Motion', info.chapters);

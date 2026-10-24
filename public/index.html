@@ -863,7 +863,13 @@
     confirmBox2(r.label + ' – these changes will be made', body).then(function (ok) { if (ok) apply(key); });
   });
 
-  document.getElementById('refreshAll').onclick = function () { visible().forEach(function (s) { preview(s.key, true); }); };
+  // 2 at a time (not all 6 at once): the Google read limit per minute is shared by everyone
+  document.getElementById('refreshAll').onclick = function () {
+    var todo = visible().map(function (s) { return s.key; });
+    todo.forEach(function (k) { state.busy[k] = 'Check'; renderOne(k); });
+    function next() { var k = todo.shift(); return k ? preview(k, true).then(next) : null; }
+    next(); next();
+  };
 
   document.getElementById('applyAll').onclick = function () {
     var todo = visible().filter(function (s) { var r = (state.data[s.key] || {}).res; return r && !r.applied && r.totalChanges; });
