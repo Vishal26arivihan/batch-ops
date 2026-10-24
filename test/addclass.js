@@ -38,7 +38,9 @@ let id = 1001;
   npRows.push([String(id++), 'PHYSICS', 'LIVE_CLASS_NOTES', C(n), t, '', done ? 'https://x/1.pdf' : '', t + '.pdf', done ? 'NO' : 'YES', '', '', 'SINGLE', '']);
   npRows.push([String(id++), 'PHYSICS', 'DAILY_PRACTICE_PROBLEMS', C(n), t, '', '', '', done ? 'NO' : 'YES', done ? C(n) + 'DPP' : '', done ? '5' : '', 'LIST', '']);
 });
-G.addBook(NP, 'NodePath HIN', { 'PHY PATH': npRows });
+// + a backup copy of the PATH tab (made by another tool): must never be picked, read or changed
+const BK = '_bk_20261024T104330-b17f_PHY PATH';
+G.addBook(NP, 'NodePath HIN', { 'PHY PATH': npRows, [BK]: npRows.map(r => r.slice()) });
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  ok  ', name); } else { fail++; console.log('  FAIL', name, extra === undefined ? '' : JSON.stringify(extra).slice(0, 500)); } };
@@ -46,6 +48,9 @@ const call = (fn, args) => runJob({ fn, args, user: O }).then(JSON.parse);
 const grid = (book, tab) => G.BOOKS[book].sheets.find(s => s.title === tab).grid.map(r => r.map(c => (c && c.raw !== undefined ? c.raw : '')));
 
 (async () => {
+  const pv = await call('webPreview', ['PHYSICS_HIN', true]);
+  ok('nodepath check: backup tab ignored', pv.sheet === 'PHY PATH', pv);
+
   const info = await call('webAddClassInfo', ['PHYHIN']);
   const kin = info.chapters.find(c => c.name === 'Kinematics');
   ok('info: chapters in row order', info.chapters.map(c => c.name).join('|') === 'Kinematics|Laws of Motion', info.chapters);
@@ -104,6 +109,7 @@ const grid = (book, tab) => G.BOOKS[book].sheets.find(s => s.title === tab).grid
     .push(['24/10/2026 10:00:00', O, 'PUSH_DASHBOARD', C(6) + 'ML1', 'OK'].map(v => ({ raw: v, f: null, disp: v })));
   const up2 = await call('webAddClassUndoPlan', [C(6)]);
   ok('undo blocked after a push', up2.blocks.length === 1 && /pushed/.test(up2.blocks[0]), up2.blocks);
+  ok('backup tab never changed', JSON.stringify(grid(NP, BK)) === JSON.stringify(npRows), grid(NP, BK).map(x => x[0] + ' ' + x[3]));
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

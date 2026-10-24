@@ -1095,6 +1095,8 @@ function recolorRecordedAll() {
 }
 
 function b_(x) { return x === null || x === undefined ? "" : String(x).trim(); }
+/** Backup copies of a tab (e.g. "_bk_20261024T104254-260e_NEET_2026_CHEMISTRY_PATH_1"): never read or changed. */
+function isBackupTab_(name) { return /^_bk_/i.test(String(name).trim()); }
 
 // ---------- NODE PATH SHEET UPDATE (runs together with Push Nodes / Push DPP) ----------
 
@@ -1150,7 +1152,7 @@ function updateNodeSheet_(p, parts) {
   let found = 0, changed = 0, tabName = "";
 
   file.getSheets().forEach(tab => {
-    if (tab.getLastRow() < 2) return;
+    if (isBackupTab_(tab.getName()) || tab.getLastRow() < 2) return;
     const lastCol = tab.getLastColumn();
     const hdr = tab.getRange(1, 1, 1, lastCol).getValues()[0].map(x => b_(x));
     const col = {};
@@ -1887,7 +1889,7 @@ function upCfg_(lang) {
 
 /** Info tab of the NodePath file (with path_id / subject / update / active) */
 function upInfoTab_(ss) {
-  const tabs = ss.getSheets();
+  const tabs = ss.getSheets().filter(t => !isBackupTab_(t.getName()));
   for (let i = 0; i < tabs.length; i++) {
     const t = tabs[i];
     if (t.getLastRow() < 1 || t.getLastColumn() < 1) continue;
@@ -2002,7 +2004,7 @@ function dppCfg_(key) {
 
 /** Info tab of a DPP file (name starts with "Info", or the first tab with Id / Name / Update headers). */
 function dppInfoTab_(ss) {
-  const tabs = ss.getSheets();
+  const tabs = ss.getSheets().filter(t => !isBackupTab_(t.getName()));
   const byHeader = t => {
     if (t.getLastRow() < 1 || t.getLastColumn() < 1) return null;
     const h = t.getRange(1, 1, 1, t.getLastColumn()).getDisplayValues()[0].map(x => b_(x).toLowerCase());
@@ -2561,7 +2563,7 @@ function acPlan_(T, d) {
 
   const microTab = code + BACKUP_TAB_SUFFIX;
   const microTpl = (ch && T.file.getSheetByName(ch.lastCode + BACKUP_TAB_SUFFIX)) ||
-    T.file.getSheets().filter(s => s.getName().slice(-BACKUP_TAB_SUFFIX.length) === BACKUP_TAB_SUFFIX).slice(-1)[0] || null;
+    T.file.getSheets().filter(s => !isBackupTab_(s.getName()) && s.getName().slice(-BACKUP_TAB_SUFFIX.length) === BACKUP_TAB_SUFFIX).slice(-1)[0] || null;
   const filled = Object.keys(ADD_CLASS_FILL).map(k => ADD_CLASS_FILL[k]).filter(n => T.ci(n) !== undefined)
     .concat(ADD_CLASS_COPY.filter(n => T.ci(n) !== undefined), cPos !== undefined && pos.value !== "" ? [T.h[cPos]] : []);
   return {
@@ -3093,10 +3095,11 @@ function resolveTab_(ss, subj) {
     return t;
   }
   const cands = ss.getSheets().filter(function (t) {
+    // name first (no read needed): backup copies and other subjects' tabs are never opened
+    if (isBackupTab_(t.getName()) || !subj.tabRe.test(t.getName())) return false;
     if (t.getLastRow() < 2 || t.getLastColumn() < 1) return false;
     const h = t.getRange(1, 1, 1, t.getLastColumn()).getValues()[0].map(function (x) { return S_(x); });
-    if (h.indexOf('node_id') < 0 || h.indexOf('task_type') < 0 || h.indexOf('chapter_code') < 0) return false;
-    return subj.tabRe.test(t.getName());
+    return h.indexOf('node_id') >= 0 && h.indexOf('task_type') >= 0 && h.indexOf('chapter_code') >= 0;
   });
   if (cands.length === 1) return cands[0];
   const all = ss.getSheets().map(function (t) { return t.getName(); }).join(', ');
